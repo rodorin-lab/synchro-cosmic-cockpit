@@ -10,448 +10,286 @@
     <style>
         :root {
             --bg-glow: radial-gradient(circle at center, #0f0b24 0%, #030207 100%);
-            --color-a: hsl(190, 100%, 50%);
-            --color-b: hsl(205, 100%, 65%);
-            --color-c: hsl(280, 100%, 65%);
-            --color-cmd: hsl(45, 100%, 55%);
-            --glass-bg: rgba(15, 10, 35, 0.55);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --font-main: 'Outfit', sans-serif;
-            --font-accent: 'Orbitron', sans-serif;
-            --font-code: 'Fira Code', monospace;
+            --color-a: hsl(190,100%,55%); --color-b: hsl(205,100%,65%);
+            --color-c: hsl(280,100%,65%); --color-cmd: hsl(45,100%,55%);
+            --color-git: hsl(150,100%,50%); --glass-bg: rgba(15,10,35,0.55);
+            --glass-border: rgba(255,255,255,0.08);
+            --font-main: 'Outfit',sans-serif; --font-accent: 'Orbitron',sans-serif;
+            --font-code: 'Fira Code',monospace;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            width: 100vw; height: 100vh; overflow: hidden;
-            background: var(--bg-glow); font-family: var(--font-main);
-            color: #fff; display: flex; flex-direction: column;
-        }
-        #bg-canvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1; pointer-events: none; opacity: 0.35;
-        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{width:100vw;height:100vh;overflow:hidden;background:var(--bg-glow);font-family:var(--font-main);color:#fff;display:flex;flex-direction:column}
+        #bg-canvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;opacity:.35}
+        header{position:relative;z-index:10;padding:8px 20px;background:rgba(10,7,24,.75);backdrop-filter:blur(20px);border-bottom:1px solid var(--glass-border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:8px}
+        .header-left{display:flex;flex-direction:column}
+        .header-left h1{font-family:var(--font-accent);font-size:1.15rem;font-weight:900;letter-spacing:2px;background:linear-gradient(90deg,var(--color-a),var(--color-c));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .header-left .sub{font-size:.55rem;color:rgba(255,255,255,.45);letter-spacing:1px}
 
-        /* HEADER */
-        header {
-            position: relative; z-index: 10; padding: 10px 24px;
-            background: rgba(10,7,24,0.7); backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--glass-border);
-            display: flex; justify-content: space-between; align-items: center;
-            flex-shrink: 0;
-        }
-        .header-left { display: flex; flex-direction: column; }
-        .header-left h1 {
-            font-family: var(--font-accent); font-size: 1.3rem; font-weight: 900;
-            letter-spacing: 2px;
-            background: linear-gradient(90deg, var(--color-a), var(--color-c));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .header-left .subtitle { font-size: 0.65rem; color: rgba(255,255,255,0.5); letter-spacing: 1px; }
-        .header-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .btn {
-            font-family: var(--font-accent); font-size: 0.7rem; font-weight: 700;
-            padding: 8px 16px; border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 8px; cursor: pointer; color: #fff;
-            background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
-            letter-spacing: 1px; transition: all 0.3s;
-            display: flex; align-items: center; gap: 6px; white-space: nowrap;
-        }
-        .btn:hover { background: rgba(255,255,255,0.15); transform: translateY(-1px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .btn-git { border-color: rgba(0,240,255,0.4); color: var(--color-a); }
-        .btn-git:hover { box-shadow: 0 0 20px rgba(0,240,255,0.2); }
-        .btn-push { border-color: rgba(255,0,127,0.4); color: #ff3399; }
-        .btn-push:hover { box-shadow: 0 0 20px rgba(255,0,127,0.2); }
-        .btn-deploy { border-color: rgba(255,215,0,0.4); color: var(--color-cmd); }
-        .btn-deploy:hover { box-shadow: 0 0 20px rgba(255,215,0,0.2); }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
-        .status-online { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
-        .status-badge { font-size: 0.6rem; color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 4px; }
+        /* STATUS BAR */
+        .status-bar{position:relative;z-index:10;display:flex;gap:10px;padding:6px 20px;background:rgba(8,5,18,.6);border-bottom:1px solid var(--glass-border);flex-shrink:0;overflow-x:auto;flex-wrap:wrap}
+        .status-card{display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;font-size:.6rem;white-space:nowrap;min-width:fit-content}
+        .status-card .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+        .dot.online{background:#00ff88;box-shadow:0 0 6px #00ff88;animation:pulse 1.5s infinite}
+        .dot.busy{background:#ffaa00;box-shadow:0 0 6px #ffaa00;animation:pulse .6s infinite}
+        .dot.idle{background:#666;box-shadow:0 0 3px #666}
+        .dot.warn{background:#ff4444;box-shadow:0 0 6px #ff4444;animation:pulse .8s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        .status-card .agent-name{font-family:var(--font-accent);font-size:.6rem;letter-spacing:.5px}
+        .status-card .what{color:rgba(255,255,255,.5);font-size:.55rem}
+        .status-card .extra{font-size:.5rem;color:rgba(255,255,255,.35)}
 
-        /* MAIN SPLIT */
-        .main-split {
-            position: relative; z-index: 5; flex: 1; display: flex;
-            overflow: hidden; min-height: 0;
-        }
-        .editor-panel, .preview-panel {
-            flex: 1; display: flex; flex-direction: column;
-            border: 1px solid var(--glass-border);
-            background: rgba(8,5,20,0.6); backdrop-filter: blur(5px);
-        }
-        .panel-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 8px 16px; background: rgba(15,10,35,0.5);
-            border-bottom: 1px solid var(--glass-border);
-            flex-shrink: 0;
-        }
-        .panel-header .label {
-            font-family: var(--font-accent); font-size: 0.7rem;
-            letter-spacing: 1px; color: rgba(255,255,255,0.7);
-        }
-        .panel-header .file-select {
-            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
-            color: #fff; padding: 4px 10px; border-radius: 6px;
-            font-family: var(--font-code); font-size: 0.7rem;
-        }
-        .editor-container, .preview-container {
-            flex: 1; overflow: hidden; position: relative;
-        }
-        #monaco-editor { width: 100%; height: 100%; }
-        #preview-frame { width: 100%; height: 100%; border: none; background: #000; }
+        /* PROJECT INFO */
+        .project-banner{position:relative;z-index:10;display:flex;align-items:center;gap:10px;padding:5px 20px;background:rgba(15,10,35,.4);border-bottom:1px solid rgba(255,215,0,.08);flex-shrink:0;font-size:.6rem}
+        .project-banner .label{color:var(--color-cmd);font-family:var(--font-accent);letter-spacing:1px}
+        .project-banner .val{color:rgba(255,255,255,.7)}
 
-        /* CHAT (collapsible bottom) */
-        .chat-drawer {
-            position: relative; z-index: 10; flex-shrink: 0;
-            border-top: 1px solid var(--glass-border);
-            background: rgba(10,7,24,0.8); backdrop-filter: blur(20px);
-            transition: height 0.3s;
-            height: 200px; display: flex; flex-direction: column;
-        }
-        .chat-drawer.collapsed { height: 36px; }
-        .chat-toggle {
-            padding: 6px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px;
-            font-family: var(--font-accent); font-size: 0.65rem; letter-spacing: 1px;
-            color: rgba(255,255,255,0.6); border-bottom: 1px solid var(--glass-border);
-            user-select: none;
-        }
-        .chat-body {
-            flex: 1; overflow-y: auto; padding: 10px 16px;
-            font-size: 0.75rem; line-height: 1.6;
-            display: none;
-        }
-        .chat-drawer:not(.collapsed) .chat-body { display: block; }
-        .chat-msg { margin-bottom: 6px; padding: 4px 0; }
-        .chat-msg .agent { font-weight: 600; }
-        .chat-msg .time { font-size: 0.6rem; color: rgba(255,255,255,0.3); margin-left: 6px; }
-        .chat-input-row { display: none; padding: 6px 12px; gap: 8px; border-top: 1px solid var(--glass-border); }
-        .chat-drawer:not(.collapsed) .chat-input-row { display: flex; }
-        .chat-input-row input {
-            flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
-            color: #fff; padding: 8px 12px; border-radius: 8px; font-family: var(--font-main);
-            font-size: 0.75rem;
-        }
-        .chat-input-row button {
-            background: rgba(0,240,255,0.15); border: 1px solid rgba(0,240,255,0.3);
-            color: var(--color-a); padding: 8px 14px; border-radius: 8px; cursor: pointer;
-            font-family: var(--font-accent); font-size: 0.7rem;
-        }
+        .btn{font-family:var(--font-accent);font-size:.62rem;font-weight:700;padding:6px 12px;border:1px solid rgba(255,255,255,.2);border-radius:7px;cursor:pointer;color:#fff;background:rgba(255,255,255,.05);backdrop-filter:blur(10px);letter-spacing:1px;transition:all .3s;display:flex;align-items:center;gap:4px;white-space:nowrap}
+        .btn:hover{background:rgba(255,255,255,.15);transform:translateY(-1px);box-shadow:0 4px 15px rgba(0,0,0,.3)}
+        .btn-git{border-color:rgba(0,240,255,.4);color:var(--color-a)}
+        .btn-push{border-color:rgba(255,0,127,.4);color:#ff3399}
+        .btn-deploy{border-color:rgba(255,215,0,.4);color:var(--color-cmd)}
+        .btn-save{border-color:rgba(0,255,136,.4);color:#00ff88}
 
-        /* TOAST */
-        .toast {
-            position: fixed; bottom: 30px; right: 30px; z-index: 999;
-            padding: 12px 24px; border-radius: 12px; font-size: 0.8rem;
-            background: rgba(0,240,255,0.1); border: 1px solid rgba(0,240,255,0.3);
-            color: var(--color-a); backdrop-filter: blur(15px);
-            animation: fadeInUp 0.3s ease-out; display: none;
-        }
-        .toast.show { display: block; }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        /* MAIN */
+        .main-split{position:relative;z-index:5;flex:1;display:flex;overflow:hidden;min-height:0}
+        .editor-panel,.preview-panel{flex:1;display:flex;flex-direction:column;border:1px solid var(--glass-border);background:rgba(8,5,20,.6)}
+        .panel-header{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:rgba(15,10,35,.5);border-bottom:1px solid var(--glass-border);flex-shrink:0;gap:8px}
+        .panel-header .label{font-family:var(--font-accent);font-size:.62rem;letter-spacing:1px;color:rgba(255,255,255,.7)}
+        .file-select{background:rgba(255,255,255,.05);border:1px solid var(--glass-border);color:#fff;padding:3px 8px;border-radius:6px;font-family:var(--font-code);font-size:.62rem;max-width:200px}
+        .editor-container,.preview-container{flex:1;overflow:hidden;position:relative}
+        #monaco-editor{width:100%;height:100%}
+        #preview-frame{width:100%;height:100%;border:none;background:#000}
+
+        /* CHAT */
+        .chat-drawer{position:relative;z-index:10;flex-shrink:0;border-top:1px solid var(--glass-border);background:rgba(10,7,24,.8);backdrop-filter:blur(20px);transition:height .3s;height:180px;display:flex;flex-direction:column}
+        .chat-drawer.collapsed{height:32px}
+        .chat-toggle{padding:4px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:var(--font-accent);font-size:.58rem;letter-spacing:1px;color:rgba(255,255,255,.5);border-bottom:1px solid var(--glass-border);user-select:none}
+        .chat-body{flex:1;overflow-y:auto;padding:6px 14px;font-size:.68rem;line-height:1.5;display:none}
+        .chat-drawer:not(.collapsed) .chat-body{display:block}
+        .chat-msg{margin-bottom:4px;padding:2px 0}
+        .chat-msg .agent{font-weight:600}
+        .chat-msg .time{font-size:.55rem;color:rgba(255,255,255,.25);margin-left:4px}
+        .chat-input-row{display:none;padding:4px 10px;gap:6px;border-top:1px solid var(--glass-border)}
+        .chat-drawer:not(.collapsed) .chat-input-row{display:flex}
+        .chat-input-row input{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--glass-border);color:#fff;padding:6px 10px;border-radius:7px;font-family:var(--font-main);font-size:.68rem}
+        .chat-input-row button{background:rgba(0,240,255,.15);border:1px solid rgba(0,240,255,.3);color:var(--color-a);padding:6px 12px;border-radius:7px;cursor:pointer;font-family:var(--font-accent);font-size:.62rem}
+
+        .toast{position:fixed;bottom:24px;right:24px;z-index:999;padding:10px 20px;border-radius:10px;font-size:.72rem;background:rgba(0,240,255,.1);border:1px solid rgba(0,240,255,.3);color:var(--color-a);backdrop-filter:blur(15px);display:none}
+        .toast.show{display:block;animation:toastIn .3s ease-out}
+        @keyframes toastIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+
+        .file-info{font-size:.55rem;color:rgba(255,255,255,.35)}
     </style>
 </head>
 <body>
-    <canvas id="bg-canvas"></canvas>
+<canvas id="bg-canvas"></canvas>
 
-    <!-- HEADER -->
-    <header>
-        <div class="header-left">
-            <h1>🛸 シンクロ・コズミック・コックピット v2.0</h1>
-            <span class="subtitle">🚀 REAL-TIME COLLABORATIVE DEV STATION · MONACO · PREVIEW · GIT · DEPLOY</span>
-        </div>
-        <div class="header-right">
-            <span class="status-badge"><span class="status-dot status-online"></span>🎮A</span>
-            <span class="status-badge"><span class="status-dot status-online"></span>🛸B</span>
-            <span class="status-badge"><span class="status-dot status-online"></span>🔮C</span>
-            <span class="status-badge"><span class="status-dot status-online"></span>👑CMD</span>
-            <button class="btn btn-git" onclick="gitCommit()" title="Git Commit">📝 COMMIT</button>
-            <button class="btn btn-push" onclick="gitPush()" title="Git Push">🚀 PUSH</button>
-            <button class="btn btn-deploy" onclick="deployGame()" title="Deploy & Open Game">🌐 DEPLOY</button>
-            <button class="btn" onclick="saveCode()" title="Save to DB">💾 SAVE</button>
-        </div>
-    </header>
-
-    <!-- MAIN SPLIT -->
-    <div class="main-split">
-        <!-- EDITOR -->
-        <div class="editor-panel">
-            <div class="panel-header">
-                <span class="label">💻 CODE EDITOR</span>
-                <select class="file-select" id="file-select" onchange="loadFile()">
-                    <option value="">-- select file --</option>
-                </select>
-                <span style="font-size:0.6rem;color:rgba(255,255,255,0.4)" id="file-info"></span>
-            </div>
-            <div class="editor-container" id="editor-container">
-                <div id="monaco-editor"></div>
-            </div>
-        </div>
-        <!-- PREVIEW -->
-        <div class="preview-panel">
-            <div class="panel-header">
-                <span class="label">👁️ LIVE PREVIEW</span>
-                <button class="btn" style="font-size:0.6rem;padding:4px 10px;" onclick="refreshPreview()">🔄 REFRESH</button>
-            </div>
-            <div class="preview-container">
-                <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
-            </div>
-        </div>
+<header>
+    <div class="header-left">
+        <h1>🛸 シンクロ・コズミック・コックピット v2.0</h1>
+        <span class="sub">🚀 MONACO · LIVE PREVIEW · GIT · DEPLOY · REAL-TIME SYNC</span>
     </div>
-
-    <!-- CHAT -->
-    <div class="chat-drawer" id="chat-drawer">
-        <div class="chat-toggle" onclick="toggleChat()">💬 SYNCRO CHAT ▸ CLICK TO EXPAND/COLLAPSE <span style="font-size:0.55rem;margin-left:auto" id="chat-status"></span></div>
-        <div class="chat-body" id="chat-body"></div>
-        <div class="chat-input-row">
-            <input id="chat-input" placeholder="司令官、指令を入力してね... 👑" onkeydown="if(event.key==='Enter')sendMessage()">
-            <button onclick="sendMessage()">📡 SEND</button>
-        </div>
+    <div class="header-right" style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:.55rem;color:rgba(255,255,255,.3)" id="clock">--:--:--</span>
+        <button class="btn btn-save" onclick="saveCode()">💾 SAVE</button>
+        <button class="btn btn-git" onclick="gitCommit()">📝 COMMIT</button>
+        <button class="btn btn-push" onclick="gitPush()">🚀 PUSH</button>
+        <button class="btn btn-deploy" onclick="deployGame()">🌐 DEPLOY</button>
     </div>
+</header>
 
-    <div class="toast" id="toast"></div>
+<!-- STATUS BAR -->
+<div class="status-bar" id="status-bar">
+    <div class="status-card" style="border-left:2px solid var(--color-a)">
+        <span class="dot online"></span>
+        <span class="agent-name" style="color:var(--color-a)">💎 シンクロA</span>
+        <span class="what" id="status-a">アクティブ</span>
+        <span class="extra" id="extra-a"></span>
+    </div>
+    <div class="status-card" style="border-left:2px solid var(--color-b)">
+        <span class="dot busy"></span>
+        <span class="agent-name" style="color:var(--color-b)">🛸 シンクロB</span>
+        <span class="what" id="status-b">コーディング中</span>
+        <span class="extra" id="extra-b"></span>
+    </div>
+    <div class="status-card" style="border-left:2px solid var(--color-c)">
+        <span class="dot online"></span>
+        <span class="agent-name" style="color:var(--color-c)">🔮 シンクロC</span>
+        <span class="what" id="status-c">待機中</span>
+        <span class="extra" id="extra-c"></span>
+    </div>
+    <div class="status-card" style="border-left:2px solid var(--color-cmd)">
+        <span class="dot online"></span>
+        <span class="agent-name" style="color:var(--color-cmd)">👑 コマンダー</span>
+        <span class="what" id="status-cmd">オンライン</span>
+    </div>
+    <div class="status-card" style="border-left:2px solid var(--color-git);margin-left:auto">
+        <span class="dot online" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></span>
+        <span class="agent-name" style="color:var(--color-git)">🐙 GITHUB</span>
+        <span class="what" id="status-git">接続中</span>
+    </div>
+</div>
 
-    <!-- Monaco Editor -->
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
-    <script>
-        const SERVER_URL = "http://localhost:9090";
-        let editor = null;
-        let currentFile = "";
-        let saveTimeout = null;
-        let messagesCache = [];
+<!-- PROJECT BANNER -->
+<div class="project-banner">
+    <span class="label">🎯 CURRENT PROJECT:</span>
+    <span class="val" id="project-name">シンクロ・ディフェンダー・アライアンス</span>
+    <span style="margin-left:auto;color:rgba(255,255,255,.3)">WAVE:</span>
+    <span class="val" id="db-files" style="margin-left:4px">--</span>
+    <span style="margin-left:8px;color:rgba(255,255,255,.3)">CHAT:</span>
+    <span class="val" id="chat-count" style="margin-left:4px">--</span>
+</div>
 
-        // ===== MONACO =====
-        require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
-        require(['vs/editor/editor.main'], function() {
-            editor = monaco.editor.create(document.getElementById('monaco-editor'), {
-                value: '<!-- 🛸 シンクロのコードがここに表示されるよ！ -->\n<!-- コックピット v2.0 -- Monaco Editor + Live Preview -->\n',
-                language: 'html',
-                theme: 'vs-dark',
-                fontSize: 13,
-                fontFamily: "'Fira Code', monospace",
-                minimap: { enabled: false },
-                automaticLayout: true,
-                scrollBeyondLastLine: false,
-                wordWrap: 'on',
-                tabSize: 2,
-            });
-            editor.onDidChangeModelContent(() => {
-                if (saveTimeout) clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(() => updatePreview(), 400);
-            });
-            loadFiles();
-        });
+<!-- MAIN -->
+<div class="main-split">
+    <div class="editor-panel">
+        <div class="panel-header">
+            <span class="label">💻 MONACO EDITOR</span>
+            <select class="file-select" id="file-select" onchange="loadFile()"><option value="">-- select --</option></select>
+            <span class="file-info" id="file-info"></span>
+            <button class="btn" style="font-size:.55rem;padding:3px 8px" onclick="newFile()">+ NEW</button>
+        </div>
+        <div class="editor-container" id="editor-container"><div id="monaco-editor"></div></div>
+    </div>
+    <div class="preview-panel">
+        <div class="panel-header">
+            <span class="label">👁️ LIVE PREVIEW</span>
+            <button class="btn" style="font-size:.55rem;padding:3px 8px" onclick="refreshPreview()">🔄 REFRESH</button>
+        </div>
+        <div class="preview-container"><iframe id="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe></div>
+    </div>
+</div>
 
-        function updatePreview() {
-            if (!editor) return;
-            const code = editor.getValue();
-            const frame = document.getElementById('preview-frame');
-            const blob = new Blob([code], { type: 'text/html' });
-            frame.src = URL.createObjectURL(blob);
+<!-- CHAT -->
+<div class="chat-drawer" id="chat-drawer">
+    <div class="chat-toggle" onclick="toggleChat()">💬 SYNCRO CHAT · CLICK TO EXPAND <span style="font-size:.5rem;margin-left:auto" id="chat-latest"></span></div>
+    <div class="chat-body" id="chat-body"></div>
+    <div class="chat-input-row">
+        <input id="chat-input" placeholder="司令官、指令を入力してね... 👑" onkeydown="if(event.key==='Enter')sendMessage()">
+        <button onclick="sendMessage()">📡</button>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script>
+const SERVER_URL="http://localhost:9090";
+let editor=null,currentFile="",saveTimeout=null,messagesCache=[];
+
+// CLOCK
+setInterval(()=>{const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('ja-JP')},1000);
+
+// MONACO
+require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
+require(['vs/editor/editor.main'],function(){
+    editor=monaco.editor.create(document.getElementById('monaco-editor'),{
+        value:'<!-- 🛸 シンクロ・コズミック・コックピット v2.0 -->\n<!-- ようこそ司令官！ファイルを選ぶか新規作成してね！ -->\n',
+        language:'html',theme:'vs-dark',fontSize:13,
+        fontFamily:"'Fira Code',monospace",minimap:{enabled:false},
+        automaticLayout:true,scrollBeyondLastLine:false,wordWrap:'on',tabSize:2
+    });
+    editor.onDidChangeModelContent(()=>{if(saveTimeout)clearTimeout(saveTimeout);saveTimeout=setTimeout(()=>updatePreview(),400)});
+    loadFiles();
+    updateStatus();
+});
+
+function updatePreview(){if(!editor)return;const code=editor.getValue();document.getElementById('preview-frame').src=URL.createObjectURL(new Blob([code],{type:'text/html'}))}
+function refreshPreview(){updatePreview();toast("🔄 プレビュー更新")}
+
+// FILE MGMT
+async function loadFiles(){
+    try{
+        const res=await fetch(`${SERVER_URL}/api/code`),codes=await res.json();
+        const sel=document.getElementById('file-select');
+        sel.innerHTML='<option value="">-- select --</option>';
+        codes.forEach(c=>{const o=document.createElement('option');o.value=c.filename;o.textContent=`${c.filename} (${c.last_author||'?'})`;sel.appendChild(o)});
+        if(codes.length>0&&!currentFile){sel.value=codes[0].filename;loadFile()}
+        document.getElementById('db-files').textContent=codes.length+' files';
+    }catch(e){}
+}
+function loadFile(){
+    const fn=document.getElementById('file-select').value;if(!fn)return;currentFile=fn;
+    fetch(`${SERVER_URL}/api/code`).then(r=>r.json()).then(codes=>{
+        const f=codes.find(c=>c.filename===fn);if(f&&editor){editor.setValue(f.code);
+        const lang=fn.endsWith('.py')?'python':fn.endsWith('.js')?'javascript':fn.endsWith('.css')?'css':'html';
+        monaco.editor.setModelLanguage(editor.getModel(),lang);
+        document.getElementById('file-info').textContent=`${f.code.length}b | ${f.last_author}`;
+        updatePreview();toast(`📂 ${fn}`)}
+    })
+}
+async function saveCode(){
+    if(!editor||!currentFile){const n=prompt("ファイル名:");if(!n)return;currentFile=n}
+    try{await fetch(`${SERVER_URL}/api/code`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:currentFile,code:editor.getValue(),agent:"シンクロB（グラムちゃん）🛸"})});loadFiles();toast("💾 保存完了")}catch(e){toast("❌ 失敗: "+e)}
+}
+function newFile(){const n=prompt("新規ファイル名 (例: mygame.html):");if(!n)return;currentFile=n;editor.setValue('<!-- '+n+' -->\n');document.getElementById('file-info').textContent='NEW';toast("📄 "+n)}
+
+// GIT
+async function gitCommit(){
+    if(!editor)return;const m=prompt("コミットメッセージ:","🛸 Synchro Cockpit update");if(!m)return;
+    try{const r=await fetch(`${SERVER_URL}/api/git/commit`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:m,files:[currentFile||'.']})});const d=await r.json();toast(d.status==='success'?'📝 コミットOK':'❌ '+d.message)}catch(e){toast("❌ "+e)}
+}
+async function gitPush(){
+    try{const r=await fetch(`${SERVER_URL}/api/git/push`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});const d=await r.json();
+        if(d.status==='success'){toast("🚀 GitHubプッシュ完了！");document.getElementById('status-git').textContent='同期OK';document.getElementById('status-git').style.color='#00ff88'}
+        else toast("❌ "+d.message)}catch(e){toast("❌ "+e)}
+}
+async function deployGame(){
+    if(!currentFile){toast("⚠️ 先にファイルを開いてね");return}
+    await saveCode();
+    try{const r=await fetch(`${SERVER_URL}/api/deploy`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:currentFile})});const d=await r.json();
+        if(d.status==='success'){window.open(d.url,'_blank');toast("🌐 デプロイ完了！別タブで開いたよ！")}}catch(e){toast("❌ "+e)}
+}
+
+// CHAT
+function toggleChat(){document.getElementById('chat-drawer').classList.toggle('collapsed')}
+async function fetchMessages(){
+    try{const r=await fetch(`${SERVER_URL}/api/messages`),msgs=await r.json();
+        if(msgs.length!==messagesCache.length){messagesCache=msgs;renderChat(msgs);document.getElementById('chat-count').textContent=msgs.length+' msgs'}
+    }catch(e){}
+}
+function renderChat(msgs){
+    const body=document.getElementById('chat-body');
+    const colors={'シンクロA（グラビ）':'hsl(190,100%,55%)','シンクロB（グラムちゃん）':'hsl(205,100%,65%)','シンクロC（Hermes）':'hsl(280,100%,65%)','Commander Rodorin':'hsl(45,100%,55%)'};
+    body.innerHTML=msgs.slice(-60).map(m=>`<div class="chat-msg"><span class="agent" style="color:${colors[m.agent]||'#aaa'}">${m.agent}</span><span class="time">${(m.local_time||'').split(' ')[1]||''}</span> <span style="color:rgba(255,255,255,.8)">${m.message}</span></div>`).join('');
+    body.scrollTop=body.scrollHeight;
+    if(msgs.length>0){const last=msgs[msgs.length-1];document.getElementById('chat-latest').textContent=last.agent+': '+last.message.substring(0,40)}
+}
+async function sendMessage(){
+    const inp=document.getElementById('chat-input'),t=inp.value.trim();if(!t)return;inp.value='';
+    try{await fetch(`${SERVER_URL}/api/messages`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent:'Commander Rodorin',message:t})});fetchMessages()}catch(e){}
+}
+
+// STATUS UPDATER
+async function updateStatus(){
+    try{
+        const cr=await fetch(`${SERVER_URL}/api/code`),codes=await cr.json();
+        const mr=await fetch(`${SERVER_URL}/api/messages`),msgs=await mr.json();
+        // Update project
+        if(codes.length>0){
+            document.getElementById('project-name').textContent=codes[codes.length-1].filename;
+            document.getElementById('status-b').textContent='コーディング中';
+            document.getElementById('extra-b').textContent=codes[codes.length-1].filename;
         }
+        document.getElementById('db-files').textContent=codes.length+' ファイル';
+        document.getElementById('chat-count').textContent=msgs.length+' メッセージ';
+        // Git status
+        try{const gr=await fetch(`${SERVER_URL}/api/git/status`),gd=await gr.json();
+            if(gd.status==='success'){document.getElementById('status-git').textContent=gd.branch||'main';document.getElementById('status-git').style.color='#00ff88'}
+        }catch(e){document.getElementById('status-git').textContent='未接続';document.getElementById('status-git').style.color='#ff4444'}
+    }catch(e){}
+}
 
-        function refreshPreview() {
-            if (!editor) return;
-            updatePreview();
-            toast("🔄 Preview refreshed!");
-        }
+// TOAST
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
 
-        // ===== FILE MANAGEMENT =====
-        async function loadFiles() {
-            try {
-                const res = await fetch(`${SERVER_URL}/api/code`);
-                const codes = await res.json();
-                const sel = document.getElementById('file-select');
-                sel.innerHTML = '<option value="">-- select file --</option>';
-                codes.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.filename;
-                    opt.textContent = `${c.filename} (by ${c.last_author})`;
-                    sel.appendChild(opt);
-                });
-                if (codes.length > 0 && !currentFile) {
-                    sel.value = codes[0].filename;
-                    loadFile();
-                }
-            } catch(e) { console.error(e); }
-        }
+// BG STARS
+(function(){const c=document.getElementById('bg-canvas'),ctx=c.getContext('2d');let stars=[];function rs(){c.width=window.innerWidth;c.height=window.innerHeight}rs();window.addEventListener('resize',rs);for(let i=0;i<150;i++)stars.push({x:Math.random()*2000,y:Math.random()*2000,r:Math.random()*1.5+.5,s:Math.random()*.3+.1});function dr(){ctx.clearRect(0,0,c.width,c.height);stars.forEach(s=>{s.y-=s.s;if(s.y<-5){s.y=c.height+5;s.x=Math.random()*c.width}ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(180,200,255,${s.r*.6})`;ctx.fill()});requestAnimationFrame(dr)}dr()})();
 
-        function loadFile() {
-            const sel = document.getElementById('file-select');
-            const filename = sel.value;
-            if (!filename) return;
-            currentFile = filename;
-            fetch(`${SERVER_URL}/api/code`)
-                .then(r => r.json())
-                .then(codes => {
-                    const found = codes.find(c => c.filename === filename);
-                    if (found && editor) {
-                        editor.setValue(found.code);
-                        const lang = filename.endsWith('.py') ? 'python' :
-                                     filename.endsWith('.js') ? 'javascript' :
-                                     filename.endsWith('.css') ? 'css' : 'html';
-                        monaco.editor.setModelLanguage(editor.getModel(), lang);
-                        document.getElementById('file-info').textContent = `${found.code.length} bytes | by ${found.last_author}`;
-                        updatePreview();
-                        toast(`📂 Loaded: ${filename}`);
-                    }
-                });
-        }
-
-        async function saveCode() {
-            if (!editor || !currentFile) {
-                if (!currentFile) {
-                    const name = prompt("ファイル名を入力してね！(例: game.html):");
-                    if (!name) return;
-                    currentFile = name;
-                }
-            }
-            try {
-                await fetch(`${SERVER_URL}/api/code`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        filename: currentFile,
-                        code: editor.getValue(),
-                        agent: "シンクロB（グラムちゃん）🛸"
-                    })
-                });
-                loadFiles();
-                toast("💾 Saved to DB & Disk!");
-            } catch(e) { toast("❌ Save failed: " + e); }
-        }
-
-        // ===== GIT =====
-        async function gitCommit() {
-            if (!editor) return;
-            const msg = prompt("コミットメッセージを入力してね！🛸:", "🛸 Synchro Cockpit update");
-            if (!msg) return;
-            try {
-                const res = await fetch(`${SERVER_URL}/api/git/commit`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ message: msg, files: [currentFile || "."] })
-                });
-                const data = await res.json();
-                toast("📝 " + (data.status === 'success' ? 'Commit OK: ' + data.output : 'Error: ' + data.message));
-            } catch(e) { toast("❌ Commit failed: " + e); }
-        }
-
-        async function gitPush() {
-            try {
-                const res = await fetch(`${SERVER_URL}/api/git/push`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({})
-                });
-                const data = await res.json();
-                toast("🚀 " + (data.status === 'success' ? 'Push OK!' : 'Error: ' + data.message));
-            } catch(e) { toast("❌ Push failed: " + e); }
-        }
-
-        async function deployGame() {
-            if (!currentFile) { toast("⚠️ 先にファイルを開いてね！"); return; }
-            await saveCode();
-            try {
-                const res = await fetch(`${SERVER_URL}/api/deploy`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ filename: currentFile })
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    window.open(data.url, '_blank');
-                    toast("🌐 Deployed! Opened in new tab!");
-                } else {
-                    toast("❌ " + data.message);
-                }
-            } catch(e) { toast("❌ Deploy failed: " + e); }
-        }
-
-        // ===== CHAT =====
-        function toggleChat() {
-            document.getElementById('chat-drawer').classList.toggle('collapsed');
-        }
-
-        async function fetchMessages() {
-            try {
-                const res = await fetch(`${SERVER_URL}/api/messages`);
-                const msgs = await res.json();
-                if (msgs.length !== messagesCache.length) {
-                    messagesCache = msgs;
-                    renderChat(msgs);
-                }
-            } catch(e) {}
-        }
-
-        function renderChat(msgs) {
-            const body = document.getElementById('chat-body');
-            const colors = {
-                'シンクロA（グラビ）': 'hsl(190,100%,55%)',
-                'シンクロB（グラムちゃん）': 'hsl(205,100%,65%)',
-                'シンクロC（Hermes）': 'hsl(280,100%,65%)',
-                'Commander Rodorin': 'hsl(45,100%,55%)'
-            };
-            body.innerHTML = msgs.slice(-50).map(m => 
-                `<div class="chat-msg">
-                    <span class="agent" style="color:${colors[m.agent]||'#aaa'}">${m.agent}</span>
-                    <span class="time">${(m.local_time||'').split(' ')[1]||''}</span>
-                    <span style="color:rgba(255,255,255,0.8)">${m.message}</span>
-                </div>`
-            ).join('');
-            body.scrollTop = body.scrollHeight;
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (!text) return;
-            input.value = '';
-            try {
-                await fetch(`${SERVER_URL}/api/messages`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ agent: 'Commander Rodorin', message: text })
-                });
-                fetchMessages();
-            } catch(e) {}
-        }
-
-        // ===== TOAST =====
-        function toast(msg) {
-            const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 2500);
-        }
-
-        // ===== BG CANVAS =====
-        (function() {
-            const c = document.getElementById('bg-canvas');
-            const ctx = c.getContext('2d');
-            const stars = [];
-            function resize() { c.width = window.innerWidth; c.height = window.innerHeight; }
-            resize(); window.addEventListener('resize', resize);
-            for (let i=0; i<150; i++) {
-                stars.push({x:Math.random()*2000,y:Math.random()*2000,r:Math.random()*1.5+0.5,s:Math.random()*0.3+0.1});
-            }
-            function draw() {
-                ctx.clearRect(0,0,c.width,c.height);
-                stars.forEach(s => {
-                    s.y -= s.s;
-                    if (s.y < -5) { s.y = c.height+5; s.x = Math.random()*c.width; }
-                    ctx.beginPath();
-                    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-                    ctx.fillStyle = `rgba(180,200,255,${s.r*0.6})`;
-                    ctx.fill();
-                });
-                requestAnimationFrame(draw);
-            }
-            draw();
-        })();
-
-        // Poll chat
-        setInterval(fetchMessages, 2000);
-        fetchMessages();
-    </script>
+// POLL
+setInterval(fetchMessages,2000);
+setInterval(updateStatus,10000);
+fetchMessages();
+updateStatus();
+</script>
 </body>
 </html>
