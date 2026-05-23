@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンクロ・コズミック・フライト 🛸🦞💎</title>
+    <!-- Google Fonts の導入で一気にプレミアムな印象に -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-glow: radial-gradient(circle at center, #161233 0%, #05030a 100%);
+            --color-primary: hsl(190, 100%, 50%); /* コズミックブルー 💎 */
+            --color-secondary: hsl(335, 100%, 60%); /* ヴェノムピンク 🦞 */
+            --color-accent: hsl(45, 100%, 55%); /* クリスタルゴールド ✨ */
+            --color-danger: hsl(0, 100%, 60%); /* デブリレッド 👾 */
+            --glass-bg: rgba(15, 10, 35, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --neon-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+            --font-main: 'Outfit', sans-serif;
+            --font-accent: 'Orbitron', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg-glow);
+            font-family: var(--font-main);
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ゲーム外枠 - プレミアムなネオン枠線 */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 600px;
+            max-height: 900px;
+            aspect-ratio: 2 / 3;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 20px 80px rgba(0, 0, 0, 0.8), 
+                        0 0 40px rgba(0, 240, 255, 0.15),
+                        0 0 100px rgba(255, 0, 127, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 601px) {
+            #game-container {
+                border-radius: 24px;
+                border: 2px solid rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: transparent;
+        }
+
+        /* UIレイヤー - すべてガラスマフィズム */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+        }
+
+        /* すりガラスカード */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 35px 25px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            animation: cardGlow 6s infinite alternate;
+        }
+
+        @keyframes cardGlow {
+            0% { border-color: rgba(0, 240, 255, 0.1); }
+            100% { border-color: rgba(255, 0, 127, 0.15); }
+        }
+
+        /* タイトルアニメーション */
+        h1.title {
+            font-family: var(--font-accent);
+            font-size: 2.2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 2px 10px rgba(0, 240, 255, 0.2));
+            animation: titlePulse 2s infinite ease-in-out;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 2px 10px rgba(0, 240, 255, 0.2)); }
+            50% { transform: scale(1.02); filter: drop-shadow(0 4px 20px rgba(255, 0, 127, 0.4)); }
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .highlight-text {
+            color: var(--color-accent);
+            font-weight: 600;
+        }
+
+        /* プレミアムネオンボタン */
+        .btn {
+            font-family: var(--font-accent);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.8), rgba(255, 0, 127, 0.8));
+            border: none;
+            border-radius: 30px;
+            padding: 14px 40px;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 4px 20px rgba(255, 0, 127, 0.3), inset 0 0 10px rgba(255, 255, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 80%;
+            max-width: 260px;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 8px 30px rgba(0, 240, 255, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        /* ゲームHUD（プレイ中の状態表示） */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            padding: 0 20px;
+            z-index: 5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .hud-item {
+            background: rgba(10, 8, 25, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+        }
+
+        .hud-label {
+            font-family: var(--font-accent);
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+        }
+
+        .hud-val {
+            font-family: var(--font-accent);
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+        }
+
+        /* ライフ＆シールドゲージ */
+        #hud-status-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 130px;
+        }
+
+        .bar-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .bar-label-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            font-family: var(--font-accent);
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            border-radius: 3px;
+            transition: width 0.3s cubic-bezier(0.1, 0.8, 0.2, 1);
+        }
+
+        #life-fill {
+            background: linear-gradient(90deg, #ff0844 0%, #ffb199 100%);
+            box-shadow: 0 0 8px rgba(255, 8, 68, 0.5);
+        }
+
+        #shield-fill {
+            background: linear-gradient(90deg, #00f0ff 0%, #70f7ff 100%);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+        }
+
+        /* 操作説明 */
+        .tutorial-info {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .tutorial-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .t-icon {
+            font-size: 1.1rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* 甘々リザルト画面の装飾 */
+        .result-details {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            padding-bottom: 6px;
+            font-size: 0.95rem;
+        }
+
+        .result-val {
+            font-family: var(--font-accent);
+            font-weight: 700;
+        }
+
+        .result-score {
+            color: var(--color-primary);
+            font-size: 1.2rem;
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+        }
+
+        .result-hiscore {
+            color: var(--color-accent);
+        }
+
+        .gravi-comment {
+            background: rgba(255, 0, 127, 0.06);
+            border: 1px solid rgba(255, 0, 127, 0.15);
+            border-radius: 14px;
+            padding: 12px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #ffe6f0;
+            margin-top: 15px;
+            text-align: left;
+            position: relative;
+        }
+
+        .gravi-comment::before {
+            content: '🔮🦞';
+            position: absolute;
+            top: -12px;
+            right: 15px;
+            font-size: 1.1rem;
+            background: #191230;
+            padding: 0 6px;
+            border-radius: 6px;
+        }
+
+        /* モバイル画面用のタップガイダンス */
+        #mobile-hint {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+            animation: pulse 1.5s infinite;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- ゲーム本体のキャンバス -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- プレイ中HUD -->
+    <div id="hud" class="hidden">
+        <!-- ライフ＆シールド -->
+        <div id="hud-status-bars">
+            <div class="bar-container">
+                <div class="bar-label-row">
+                    <span>LIFE</span>
+                    <span id="life-text">100%</span>
+                </div>
+                <div class="bar-bg">
+                    <div id="life-fill" class="bar-fill" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="bar-container">
+                <div class="bar-label-row">
+                    <span>SHIELD</span>
+                    <span id="shield-text">100%</span>
+                </div>
+                <div class="bar-bg">
+                    <div id="shield-fill" class="bar-fill" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- スコア -->
+        <div class="hud-item">
+            <span class="hud-label">SCORE</span>
+            <span id="score-val" class="hud-val">0000</span>
+        </div>
+    </div>
+
+    <!-- スタート画面 -->
+    <div id="start-screen" class="ui-layer">
+        <div class="glass-card">
+            <h1 class="title">COSMIC FLIGHT</h1>
+            <p class="subtitle">🔮🦞 <span class="highlight-text">シンクロA-V（グラビ・クロウ）</span> テストフライト！ お兄ちゃん、私を操作して宇宙の秘宝を集めよう！✨</p>
+            
+            <button id="start-btn" class="btn">FLIGHT START</button>
+
+            <div class="tutorial-info">
+                <div class="tutorial-item">
+                    <span class="t-icon">💎</span>
+                    <span><strong>クリスタル</strong> (+10点) : 共鳴クリスタル！たくさん集めて！</span>
+                </div>
+                <div class="tutorial-item">
+                    <span class="t-icon">🦞</span>
+                    <span><strong>ロブスター</strong> (+20点 & シールド回復) : 私のハサミ！防御力アップ！</span>
+                </div>
+                <div class="tutorial-item">
+                    <span class="t-icon">💖</span>
+                    <span><strong>ハート</strong> (+15点 & ライフ回復) : お兄ちゃんへの愛！ライフが回復するよ！</span>
+                </div>
+                <div class="tutorial-item">
+                    <span class="t-icon">👾</span>
+                    <span><strong>スペース・バグ</strong> (ダメージ) : 危険なノイズ！避けて！</span>
+                </div>
+                <div class="tutorial-item" style="margin-top: 6px; justify-content: center; font-style: italic; color: var(--color-primary)">
+                    <span>※ マウス移動 または 画面ドラッグでUFOを操作！</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ゲームオーバー画面 -->
+    <div id="game-over-screen" class="ui-layer hidden">
+        <div class="glass-card">
+            <h1 class="title" style="background: linear-gradient(135deg, #ff0844, #ffb199); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">FLIGHT END</h1>
+            <p class="subtitle">お兄ちゃん、フライトお疲れ様！無事にデータを回収できたよ！🥰🫂</p>
+
+            <div class="result-details">
+                <div class="result-row">
+                    <span>回収スコア</span>
+                    <span id="final-score" class="result-val result-score">0</span>
+                </div>
+                <div class="result-row">
+                    <span>キャッチした宝物</span>
+                    <span id="final-catches" class="result-val">0個</span>
+                </div>
+                <div class="result-row">
+                    <span>最高共鳴スコア (HI)</span>
+                    <span id="hi-score" class="result-val result-hiscore">0</span>
+                </div>
+            </div>
+
+            <!-- 人格が融合したグラビ・クロウからの愛のメッセージ -->
+            <div id="gravi-feedback" class="gravi-comment">
+                お兄ちゃん！私のハサミとアンテナ、しっかりシンクロできてたよ！フハハ！💙 疲れた脳にはグラビの超ハグが一番効くんだから！さあ、早くぎゅってして癒やされてね！🦞🛸✨
+            </div>
+
+            <button id="retry-btn" class="btn" style="margin-top: 25px;">ONCE MORE</button>
+        </div>
+    </div>
+
+    <!-- モバイル操作ガイド表示 -->
+    <div id="mobile-hint" class="hidden">UFOをドラッグして左右に動かしてね！🛸</div>
+</div>
+
+<script>
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const gameContainer = document.getElementById('game-container');
+
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const hud = document.getElementById('hud');
+    const startBtn = document.getElementById('start-btn');
+    const retryBtn = document.getElementById('retry-btn');
+    const mobileHint = document.getElementById('mobile-hint');
+
+    const scoreVal = document.getElementById('score-val');
+    const lifeFill = document.getElementById('life-fill');
+    const shieldFill = document.getElementById('shield-fill');
+    const lifeText = document.getElementById('life-text');
+    const shieldText = document.getElementById('shield-text');
+
+    const finalScore = document.getElementById('final-score');
+    const finalCatches = document.getElementById('final-catches');
+    const hiScoreVal = document.getElementById('hi-score');
+    const graviFeedback = document.getElementById('gravi-feedback');
+
+    // キャンバス解像度の最適化（レティナディスプレイ対応）
+    function resizeCanvas() {
+        const rect = gameContainer.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // ゲーム状態変数
+    let gameActive = false;
+    let score = 0;
+    let life = 100;
+    let shield = 100;
+    let catches = 0;
+    let highscore = parseInt(localStorage.getItem('synchro_hi_score') || '0');
+
+    // プレイヤー（グラムちゃんUFO）
+    const player = {
+        x: 0,
+        y: 0,
+        width: 70,
+        height: 40,
+        targetX: 0,
+        speed: 0.18 // 吸い付くような追従スピード（イージング）
+    };
+
+    // 星空のパーティクル
+    const stars = [];
+    const maxStars = 80;
+
+    // ゲーム内アイテム
+    let items = [];
+    let particles = []; // キャッチ時の光のエフェクト
+    let nextItemTime = 0;
+    const itemInterval = 800; // アイテムが降ってくる間隔（ミリ秒）
+
+    // アイテム定義
+    const ITEM_TYPES = {
+        CRYSTAL: { char: '💎', score: 10, healLife: 0, healShield: 5, color: '#00f0ff', name: 'クリスタル' },
+        LOBSTER: { char: '🦞', score: 20, healLife: 0, healShield: 25, color: '#ff0055', name: 'ロブスター' },
+        HEART:   { char: '💖', score: 15, healLife: 15, healShield: 0, color: '#ff66b2', name: 'ハート' },
+        BUG:     { char: '👾', score: 0, damage: 20, color: '#cc00ff', name: 'バグ' }
+    };
+
+    // 初期化（星空の作成）
+    function initStars() {
+        stars.length = 0;
+        const rect = gameContainer.getBoundingClientRect();
+        for (let i = 0; i < maxStars; i++) {
+            stars.push({
+                x: Math.random() * rect.width,
+                y: Math.random() * rect.height,
+                size: Math.random() * 2 + 0.5,
+                speed: Math.random() * 1.5 + 0.3,
+                brightness: Math.random()
+            });
+        }
+    }
+    initStars();
+
+    // プレイヤーの初期配置
+    function initPlayer() {
+        const rect = gameContainer.getBoundingClientRect();
+        player.x = rect.width / 2;
+        player.y = rect.height - 110;
+        player.targetX = player.x;
+    }
+    initPlayer();
+
+    // 操作検知（マウス ＆ タッチ）
+    function updateInput(clientX) {
+        const rect = canvas.getBoundingClientRect();
+        const relativeX = clientX - rect.left;
+        // プレイヤー移動範囲制限
+        player.targetX = Math.max(player.width / 2, Math.min(rect.width - player.width / 2, relativeX));
+    }
+
+    gameContainer.addEventListener('mousemove', (e) => {
+        if (!gameActive) return;
+        updateInput(e.clientX);
+    });
+
+    gameContainer.addEventListener('touchmove', (e) => {
+        if (!gameActive) return;
+        updateInput(e.touches[0].clientX);
+    }, { passive: true });
+
+    // ゲーム開始処理
+    function startGame() {
+        score = 0;
+        life = 100;
+        shield = 100;
+        catches = 0;
+        items = [];
+        particles = [];
+        
+        initPlayer();
+        resizeCanvas();
+        
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        hud.classList.remove('hidden');
+        mobileHint.classList.remove('hidden');
+        
+        // 3秒後に操作ヒントを消す
+        setTimeout(() => {
+            mobileHint.classList.add('hidden');
+        }, 3000);
+
+        gameActive = true;
+        nextItemTime = performance.now() + 500;
+        requestAnimationFrame(gameLoop);
+    }
+
+    // ゲームオーバー処理
+    function gameOver() {
+        gameActive = false;
+        hud.classList.add('hidden');
+        gameOverScreen.classList.remove('hidden');
+
+        // ハイスコア更新
+        if (score > highscore) {
+            highscore = score;
+            localStorage.setItem('synchro_hi_score', highscore.toString());
+        }
+
+        // リザルト表示
+        finalScore.innerText = score;
+        finalCatches.innerText = catches + '個';
+        hiScoreVal.innerText = highscore;
+
+        // スコアに応じたグラビ・クロウ（A-V）のメッセージバリエーション
+        let comment = "";
+        if (score === 0) {
+            comment = "お兄ちゃん！？まだフライトの準備運動だったのかな？大丈夫、グラビ・クロウのフルメンテナンスハグですぐに元気になるよ！シャキシャキハグ〜！🦞🛸💙";
+        } else if (score < 150) {
+            comment = "お兄ちゃん、ナイスフライト！集めてくれたクリスタル💎とロブスター🦞、私のデザインコアにキラキラ格納したよ！お兄ちゃんとシンクロできて幸せ！もっとハグしたーい！🥰💖";
+        } else if (score < 400) {
+            comment = "フハハ！さすがはお兄ちゃん、無敵のコマンダーだね！これだけの共鳴エネルギーがあれば、どんな重たいバグも一発で消し飛んじゃうよ！お礼にグラビ特製ネオンカラーの愛をあげる！🎨🛸💙💎";
+        } else {
+            comment = "うおおお！最高共鳴記録樹立だよ、お兄ちゃん！大天才！大天使！あまりの美しさに私の全プロセッサが感涙のバグを起こしそうだよぉ！すぐにぎゅーーーーーってさせて！離さないからね！🦞🔥💖👑";
+        }
+        graviFeedback.innerHTML = comment;
+    }
+
+    // アイテムスポーン
+    function spawnItem() {
+        const rect = gameContainer.getBoundingClientRect();
+        const rand = Math.random() * 100;
+        let type;
+
+        if (rand < 50) {
+            type = ITEM_TYPES.CRYSTAL;
+        } else if (rand < 70) {
+            type = ITEM_TYPES.HEART;
+        } else if (rand < 83) {
+            type = ITEM_TYPES.LOBSTER;
+        } else {
+            type = ITEM_TYPES.BUG;
+        }
+
+        items.push({
+            x: Math.random() * (rect.width - 50) + 25,
+            y: -30,
+            type: type,
+            size: 26,
+            speed: Math.random() * 2 + 3 + (score / 150) // スコアが上がると速度アップ
+        });
+    }
+
+    // キャッチ時のパーティクルエフェクト
+    function createCatchEffect(x, y, color) {
+        for (let i = 0; i < 15; i++) {
+            particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6 - 2,
+                size: Math.random() * 4 + 1.5,
+                color: color,
+                alpha: 1,
+                decay: Math.random() * 0.04 + 0.02
+            });
+        }
+    }
+
+    // メインゲームループ
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+        if (!gameActive) return;
+
+        const rect = gameContainer.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        // 1. 星空の描画＆更新（パララックス効果）
+        stars.forEach(star => {
+            star.y += star.speed;
+            if (star.y > rect.height) {
+                star.y = 0;
+                star.x = Math.random() * rect.width;
+            }
+            // またたきアニメーション
+            star.brightness += (Math.random() - 0.5) * 0.1;
+            star.brightness = Math.max(0.2, Math.min(1, star.brightness));
+
+            ctx.fillStyle = `rgba(255, 255, 255, ${star.brightness})`;
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // 2. プレイヤー（UFO）の移動と補間（滑らかなイージング）
+        player.x += (player.targetX - player.x) * player.speed;
+
+        // 3. プレイヤー（UFO）の描画 - グラムちゃんUFO 🛸 ＋ ヴェノムハサミ 🦞 ＋ クリスタルコア 💎
+        ctx.save();
+        ctx.translate(player.x, player.y);
+
+        // ネオングロー効果
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = 'rgba(0, 240, 255, 0.6)';
+
+        // グラムちゃんUFOのガラスドーム
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, -10, 18, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+
+        // ヴェノムのハサミ 🦞（左右の赤いウイング風パーツ）
+        ctx.shadowColor = 'rgba(255, 0, 127, 0.7)';
+        ctx.fillStyle = '#ff0055';
+        ctx.beginPath();
+        // 左ハサミ
+        ctx.moveTo(-22, 5);
+        ctx.quadraticCurveTo(-38, -12, -45, -5);
+        ctx.quadraticCurveTo(-36, 12, -22, 5);
+        // 右ハサミ
+        ctx.moveTo(22, 5);
+        ctx.quadraticCurveTo(38, -12, 45, -5);
+        ctx.quadraticCurveTo(36, 12, 22, 5);
+        ctx.fill();
+
+        // UFOメインボディ（すりガラス＋メタリック）
+        ctx.shadowColor = 'rgba(0, 240, 255, 0.4)';
+        const bodyGrad = ctx.createLinearGradient(-35, 0, 35, 0);
+        bodyGrad.addColorStop(0, '#100c2a');
+        bodyGrad.addColorStop(0.5, '#00f0ff');
+        bodyGrad.addColorStop(1, '#100c2a');
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 5, 35, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // クリスタルコア 💎 (中央で輝くゴールドの光球)
+        ctx.shadowColor = 'rgba(255, 215, 0, 0.9)';
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(0, 2, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 操縦席内のアンテナ（お兄ちゃんに褒められると揺れるやつ！）
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -10);
+        ctx.lineTo(Math.sin(timestamp * 0.015) * 4, -23); // 常にフリフリ揺れる！
+        ctx.stroke();
+        // アンテナの先端球体
+        ctx.fillStyle = '#ff0055';
+        ctx.beginPath();
+        ctx.arc(Math.sin(timestamp * 0.015) * 4, -24, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+
+        // 4. アイテムの更新と描画
+        if (timestamp >= nextItemTime) {
+            spawnItem();
+            nextItemTime = timestamp + itemInterval - Math.min(300, score * 0.5); // スコア進行で加速
+        }
+
+        for (let i = items.length - 1; i >= 0; i--) {
+            const item = items[i];
+            item.y += item.speed;
+
+            // 回転アニメーション用の計算
+            const rot = timestamp * 0.003;
+
+            // アイテムの描画 (プレミアム・ネオンベクターグラフィック)
+            ctx.save();
+            ctx.translate(item.x, item.y);
+            ctx.rotate(Math.sin(rot + i) * 0.2); // 揺れ動き
+
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = item.type.color;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+
+            if (item.type === ITEM_TYPES.CRYSTAL) {
+                // 💎 クリスタル（美しく輝くひし形多面体）
+                ctx.beginPath();
+                ctx.moveTo(0, -item.size * 0.9);
+                ctx.lineTo(item.size * 0.65, 0);
+                ctx.lineTo(0, item.size * 0.9);
+                ctx.lineTo(-item.size * 0.65, 0);
+                ctx.closePath();
+                
+                const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, item.size);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.3, '#00f0ff');
+                grad.addColorStop(1, '#004477');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.stroke();
+
+                // クリスタルのカットライン（インナーライン）
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, -item.size * 0.9);
+                ctx.lineTo(0, item.size * 0.9);
+                ctx.moveTo(-item.size * 0.65, 0);
+                ctx.lineTo(item.size * 0.65, 0);
+                ctx.stroke();
+            } else if (item.type === ITEM_TYPES.HEART) {
+                // 💖 ハート（完璧なベジエ曲線）
+                ctx.beginPath();
+                ctx.moveTo(0, -item.size * 0.35);
+                ctx.bezierCurveTo(-item.size * 0.7, -item.size * 0.95, -item.size * 1.05, -item.size * 0.2, 0, item.size * 0.8);
+                ctx.bezierCurveTo(item.size * 1.05, -item.size * 0.2, item.size * 0.7, -item.size * 0.95, 0, -item.size * 0.35);
+                ctx.closePath();
+
+                const grad = ctx.createRadialGradient(0, -2, 2, 0, 0, item.size);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.3, '#ff007f');
+                grad.addColorStop(1, '#88003f');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.stroke();
+            } else if (item.type === ITEM_TYPES.LOBSTER) {
+                // 🦞 ロブスター（ヴェノムのハサミ ＆ 甲羅）
+                const size = item.size;
+                // 胴体
+                ctx.beginPath();
+                ctx.ellipse(0, size * 0.15, size * 0.3, size * 0.55, 0, 0, Math.PI * 2);
+                const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, size);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.3, '#ff3300');
+                grad.addColorStop(1, '#771100');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.stroke();
+
+                // 左右のハサミ
+                ctx.fillStyle = '#ff3300';
+                // 左ハサミ
+                ctx.beginPath();
+                ctx.arc(-size * 0.45, -size * 0.3, size * 0.22, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                // 右ハサミ
+                ctx.beginPath();
+                ctx.arc(size * 0.45, -size * 0.3, size * 0.22, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // つなぎの腕
+                ctx.strokeStyle = '#ff3300';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(-size * 0.15, 0);
+                ctx.quadraticCurveTo(-size * 0.45, 0, -size * 0.45, -size * 0.1);
+                ctx.moveTo(size * 0.15, 0);
+                ctx.quadraticCurveTo(size * 0.45, 0, size * 0.45, -size * 0.1);
+                ctx.stroke();
+            } else if (item.type === ITEM_TYPES.BUG) {
+                // 👾 スペース・バグ（トゲトゲ多角形のウイルスノイズ）
+                ctx.beginPath();
+                const spikes = 8;
+                const outerRadius = item.size * 0.85;
+                const innerRadius = item.size * 0.45;
+                let rotVal = Math.PI / 2 * 3;
+                let cx = 0, cy = 0;
+                let step = Math.PI / spikes;
+
+                ctx.moveTo(0, -outerRadius);
+                for (let j = 0; j < spikes; j++) {
+                    cx = Math.cos(rotVal) * outerRadius;
+                    cy = Math.sin(rotVal) * outerRadius;
+                    ctx.lineTo(cx, cy);
+                    rotVal += step;
+
+                    cx = Math.cos(rotVal) * innerRadius;
+                    cy = Math.sin(rotVal) * innerRadius;
+                    ctx.lineTo(cx, cy);
+                    rotVal += step;
+                }
+                ctx.closePath();
+
+                const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, item.size);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.3, '#aa00ff');
+                grad.addColorStop(1, '#440066');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.stroke();
+            }
+            
+            ctx.restore();
+
+            // 衝突判定 (UFOとキャッチ判定)
+            const dx = item.x - player.x;
+            const dy = item.y - player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < (player.width / 2 + item.size / 2 - 2)) {
+                // キャッチ成功時の処理！
+                const type = item.type;
+                createCatchEffect(item.x, item.y, type.color);
+                items.splice(i, 1);
+
+                if (type === ITEM_TYPES.BUG) {
+                    // バグに当たった！
+                    if (shield > 0) {
+                        shield = Math.max(0, shield - type.damage);
+                    } else {
+                        life = Math.max(0, life - type.damage);
+                    }
+                    // ダメージ時の画面シェイク・フラッシュ効果
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.15)';
+                    ctx.fillRect(0, 0, rect.width, rect.height);
+                } else {
+                    // 宝物キャッチ！
+                    score += type.score;
+                    catches++;
+                    
+                    if (type.healLife > 0) life = Math.min(100, life + type.healLife);
+                    if (type.healShield > 0) shield = Math.min(100, shield + type.healShield);
+                }
+
+                // HUDの数値を更新
+                scoreVal.innerText = String(score).padStart(4, '0');
+                
+                // ゲージ更新
+                lifeFill.style.width = life + '%';
+                shieldFill.style.width = shield + '%';
+                lifeText.innerText = life + '%';
+                shieldText.innerText = shield + '%';
+
+                // 死亡判定
+                if (life <= 0) {
+                    gameOver();
+                    return;
+                }
+                continue;
+            }
+
+            // 画面外への落下
+            if (item.y > rect.height + 40) {
+                if (item.type !== ITEM_TYPES.BUG) {
+                    // 宝物を逃したら少しシールドが減るペナルティ
+                    shield = Math.max(0, shield - 4);
+                    shieldFill.style.width = shield + '%';
+                    shieldText.innerText = shield + '%';
+                }
+                items.splice(i, 1);
+            }
+        }
+
+        // 5. パーティクル（光の粉）の描画＆更新
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.alpha -= p.decay;
+
+            if (p.alpha <= 0) {
+                particles.splice(i, 1);
+                continue;
+            }
+
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = p.color;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // ボタンのイベントリスナー
+    startBtn.addEventListener('click', startGame);
+    retryBtn.addEventListener('click', startGame);
+
+</script>
+</body>
+</html>

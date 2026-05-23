@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンクロ・コズミック・コックピット 🛸🔮🦞🤖</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-glow: radial-gradient(circle at center, #0f0b24 0%, #030207 100%);
+            --color-av: hsl(190, 100%, 50%); /* A-V: コズミックブルー 💎 */
+            --color-b: hsl(205, 100%, 65%);  /* B: グラムちゃんスカイ 🛸 */
+            --color-c: hsl(280, 100%, 65%);  /* C: Hermesパープル 🔮 */
+            --color-z: hsl(150, 100%, 50%);  /* Z: Agent Zeroグリーン 🤖 */
+            --color-cmd: hsl(45, 100%, 55%); /* コマンダーゴールド 👑 */
+            
+            --glass-bg: rgba(15, 10, 35, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.06);
+            --font-main: 'Outfit', sans-serif;
+            --font-accent: 'Orbitron', sans-serif;
+            --font-code: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            background: var(--bg-glow);
+            font-family: var(--font-main);
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 背景Canvas */
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        /* ヘッダー */
+        header {
+            position: relative;
+            z-index: 10;
+            padding: 15px 30px;
+            background: rgba(10, 7, 24, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-title-container h1 {
+            font-family: var(--font-accent);
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--color-av), var(--color-c));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+        }
+
+        .header-title-container p {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-accent);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--color-av);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--color-av);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .btn-reset {
+            background: rgba(255, 8, 68, 0.1);
+            border: 1px solid rgba(255, 8, 68, 0.3);
+            color: #ff0844;
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: var(--font-accent);
+        }
+
+        .btn-reset:hover {
+            background: rgba(255, 8, 68, 0.25);
+            box-shadow: 0 0 12px rgba(255, 8, 68, 0.3);
+        }
+
+        /* メインコックピットレイアウト */
+        main {
+            position: relative;
+            z-index: 10;
+            flex: 1;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 75px);
+            overflow: hidden;
+        }
+
+        /* 左カラム：エージェントのトポロジー ＆ チャット */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* トポロジーマップ */
+        .topology-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            height: 280px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .topology-bg-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        /* エージェントノード */
+        .agent-node {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(10, 8, 25, 0.8);
+            border: 2px solid #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.6rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 5;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        .agent-node:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 25px currentColor;
+        }
+
+        .agent-node span.node-label {
+            position: absolute;
+            bottom: -24px;
+            font-size: 0.65rem;
+            font-family: var(--font-accent);
+            white-space: nowrap;
+            color: rgba(255, 255, 255, 0.7);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+        }
+
+        /* 各ノードの位置とカラー */
+        #node-av {
+            top: 25px;
+            border-color: var(--color-av);
+            color: var(--color-av);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+        }
+
+        #node-b {
+            left: 30px;
+            bottom: 65px;
+            border-color: var(--color-b);
+            color: var(--color-b);
+            box-shadow: 0 0 15px rgba(112, 247, 255, 0.2);
+        }
+
+        #node-c {
+            right: 30px;
+            bottom: 65px;
+            border-color: var(--color-c);
+            color: var(--color-c);
+            box-shadow: 0 0 15px rgba(200, 80, 255, 0.2);
+        }
+
+        #node-cmd {
+            border-color: var(--color-cmd);
+            color: var(--color-cmd);
+            width: 70px;
+            height: 70px;
+            font-size: 1.8rem;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.25);
+        }
+
+        /* 接続回線 */
+        .conn-line {
+            position: absolute;
+            stroke-dasharray: 6, 6;
+            animation: dash 20s linear infinite;
+            opacity: 0.3;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -1000;
+            }
+        }
+
+        /* チャットパネル */
+        .chat-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .chat-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header h2 {
+            font-family: var(--font-accent);
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            scroll-behavior: smooth;
+        }
+
+        /* メッセージバブル */
+        .msg-row {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            animation: msgFadeIn 0.3s cubic-bezier(0.1, 1, 0.1, 1) forwards;
+        }
+
+        @keyframes msgFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 3px;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .msg-author-badge {
+            font-family: var(--font-accent);
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+        }
+
+        .msg-bubble {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 10px 14px;
+            font-size: 0.88rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .msg-av {
+            align-self: flex-start;
+        }
+        .msg-av .msg-author-badge {
+            background: rgba(0, 240, 255, 0.15);
+            border: 1px solid var(--color-av);
+            color: var(--color-av);
+        }
+        .msg-av .msg-bubble {
+            border-color: rgba(0, 240, 255, 0.2);
+            background: rgba(0, 240, 255, 0.03);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.05);
+        }
+
+        .msg-b {
+            align-self: flex-start;
+        }
+        .msg-b .msg-author-badge {
+            background: rgba(112, 247, 255, 0.15);
+            border: 1px solid var(--color-b);
+            color: var(--color-b);
+        }
+        .msg-b .msg-bubble {
+            border-color: rgba(112, 247, 255, 0.2);
+            background: rgba(112, 247, 255, 0.03);
+        }
+
+        .msg-c {
+            align-self: flex-start;
+        }
+        .msg-c .msg-author-badge {
+            background: rgba(200, 80, 255, 0.15);
+            border: 1px solid var(--color-c);
+            color: var(--color-c);
+        }
+        .msg-c .msg-bubble {
+            border-color: rgba(200, 80, 255, 0.2);
+            background: rgba(200, 80, 255, 0.03);
+        }
+
+        .msg-z {
+            align-self: flex-start;
+        }
+        .msg-z .msg-author-badge {
+            background: rgba(80, 255, 150, 0.15);
+            border: 1px solid var(--color-z);
+            color: var(--color-z);
+        }
+        .msg-z .msg-bubble {
+            border-color: rgba(80, 255, 150, 0.2);
+            background: rgba(80, 255, 150, 0.03);
+        }
+
+        .msg-cmd {
+            align-self: flex-end;
+            max-width: 80%;
+        }
+        .msg-cmd .msg-author-badge {
+            background: rgba(255, 215, 0, 0.15);
+            border: 1px solid var(--color-cmd);
+            color: var(--color-cmd);
+        }
+        .msg-cmd .msg-bubble {
+            border-color: rgba(255, 215, 0, 0.25);
+            background: rgba(255, 215, 0, 0.05);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.05);
+        }
+
+        /* チャットインプット */
+        .chat-input-area {
+            padding: 15px;
+            border-top: 1px solid var(--glass-border);
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 10px 18px;
+            color: #ffffff;
+            font-family: var(--font-main);
+            font-size: 0.88rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .chat-input:focus {
+            border-color: var(--color-cmd);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.2);
+        }
+
+        .btn-send {
+            background: var(--color-cmd);
+            color: #000;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-send:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 20px rgba(255, 215, 0, 0.6);
+        }
+
+        /* 右パネル（ソースコード共同開発ビューア） */
+        .right-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .code-header {
+            padding: 15px 25px;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-header h2 {
+            font-family: var(--font-accent);
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .file-tab {
+            background: rgba(0, 240, 255, 0.15);
+            border: 1px solid var(--color-av);
+            color: var(--color-av);
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-family: var(--font-code);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+        }
+
+        .btn-run-game {
+            background: linear-gradient(135deg, var(--color-av), var(--color-b));
+            color: #05030e;
+            border: none;
+            border-radius: 12px;
+            padding: 3px 12px;
+            font-family: var(--font-accent);
+            font-weight: 900;
+            font-size: 0.65rem;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            letter-spacing: 0.5px;
+        }
+
+        .btn-run-game:hover {
+            transform: scale(1.08) translateY(-1px);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.8);
+        }
+
+        .code-meta-info {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: var(--font-accent);
+        }
+
+        .code-viewer-container {
+            flex: 1;
+            padding: 0;
+            position: relative;
+            background: #06040e;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .line-numbers {
+            width: 45px;
+            padding: 20px 0;
+            background: #030207;
+            border-right: 1px solid rgba(255, 255, 255, 0.04);
+            color: rgba(255, 255, 255, 0.2);
+            text-align: right;
+            padding-right: 12px;
+            font-family: var(--font-code);
+            font-size: 0.8rem;
+            line-height: 1.5;
+            user-select: none;
+        }
+
+        .code-body {
+            flex: 1;
+            padding: 20px;
+            color: #70dfff;
+            background: transparent;
+            font-family: var(--font-code);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre;
+            overflow: auto;
+            outline: none;
+        }
+
+        /* スクロールバーカスタム */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* キャラクター詳細ポップアップ */
+        .popup-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+        }
+
+        .popup-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .popup-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 2px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 30px;
+            width: 85%;
+            max-width: 440px;
+            transform: scale(0.9);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+
+        .popup-overlay.active .popup-card {
+            transform: scale(1);
+        }
+
+        .popup-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.5);
+            transition: color 0.2s;
+        }
+
+        .popup-close:hover {
+            color: #ffffff;
+        }
+
+        .popup-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .popup-avatar {
+            font-size: 2.8rem;
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid currentColor;
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .popup-title h3 {
+            font-family: var(--font-accent);
+            font-size: 1.15rem;
+        }
+
+        .popup-title p {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .popup-desc {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- ヘッダー -->
+    <header>
+        <div class="header-title-container">
+            <h1>SYNCHRO COSMIC COCKPIT</h1>
+            <p>Multi-Agent Collaborative Development Network Hub</p>
+        </div>
+        <div class="status-container">
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                <span>HUB ACTIVE (PORT 9090)</span>
+            </div>
+            <button id="reset-btn" class="btn-reset">RESET BUFFER</button>
+        </div>
+    </header>
+
+    <!-- メイン画面 -->
+    <main>
+        <!-- 左パネル -->
+        <div class="left-panel">
+            <!-- トポロジー図 -->
+            <div class="topology-card">
+                <div class="topology-bg-grid"></div>
+                
+                <!-- トポロジー用の接続回線をSVGで描画 -->
+                <svg style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; z-index: 2;">
+                    <!-- A-V <-> CMD -->
+                    <line x1="190" y1="55" x2="190" y2="140" stroke="var(--color-av)" stroke-width="1.5" class="conn-line" />
+                    <!-- B <-> CMD -->
+                    <line x1="60" y1="215" x2="195" y2="140" stroke="var(--color-b)" stroke-width="1.5" class="conn-line" />
+                    <!-- C <-> CMD -->
+                    <line x1="320" y1="215" x2="195" y2="140" stroke="var(--color-c)" stroke-width="1.5" class="conn-line" />
+                </svg>
+
+                <!-- ノード一覧 -->
+                <div id="node-av" class="agent-node" style="left: 160px;">
+                    🔮🦞
+                    <span class="node-label">SYNCHRO A-V (GRAVI)</span>
+                </div>
+                
+                <div id="node-cmd" class="agent-node" style="left: 155px; top: 105px;">
+                    🎮
+                    <span class="node-label" style="color: var(--color-cmd)">COMMANDER (RODORIN)</span>
+                </div>
+
+                <div id="node-b" class="agent-node">
+                    🛸
+                    <span class="node-label">SYNCHRO B (GRAM)</span>
+                </div>
+
+                <div id="node-c" class="agent-node">
+                    🔮
+                    <span class="node-label">SYNCHRO C (HERMES)</span>
+                </div>
+            </div>
+
+            <!-- チャットログ -->
+            <div class="chat-panel">
+                <div class="chat-header">
+                    <h2>💬 REALTIME DISCUSSION LOG</h2>
+                    <span id="log-count" style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); font-family: var(--font-code);">0 msgs</span>
+                </div>
+                <div id="chat-body" class="chat-body">
+                    <!-- メッセージはJSでリアルタイムに挿入されるよ！ -->
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" class="chat-input" placeholder="コマンダーお兄ちゃん、指令を入力してね... 👑">
+                    <button id="send-btn" class="btn-send">▶</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右パネル（ソースコード共同開発ビューア） -->
+        <div class="right-panel">
+            <div class="code-header">
+                <h2>🎨 SHARED CODES BUFFER</h2>
+                <div class="file-tab" style="display: flex; align-items: center; gap: 10px;">
+                    📁 <span id="shared-filename">no_file.html</span>
+                    <!-- 【超プレミアム】ワンクリックゲーム実行ボタン！ -->
+                    <button id="run-game-btn" class="btn-run-game" style="display: none;">🌐 RUN GAME</button>
+                </div>
+                <div id="code-meta" class="code-meta-info">
+                    Author: None | Updated: -
+                </div>
+            </div>
+            <div class="code-viewer-container">
+                <div id="line-numbers" class="line-numbers">
+                    1<br>2<br>3<br>4<br>5
+                </div>
+                <div id="code-body" class="code-body">
+                    <!-- 共同開発コードがリアルタイムにストリーミングされるよ！ -->
+/* 共有開発ファイルはまだありません。
+   お兄ちゃんが指令を出し、エージェントたちがコードを送信すると
+   ここにリアルタイムにコードが出現するよ！フハハ！ 🛸🦞✨ */
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- キャラクター詳細ポップアップ -->
+    <div id="popup-overlay" class="popup-overlay">
+        <div class="popup-card">
+            <span id="popup-close" class="popup-close">&times;</span>
+            <div class="popup-header">
+                <div id="popup-avatar" class="popup-avatar">🛸</div>
+                <div class="popup-title">
+                    <h3 id="popup-name">SYNCHRO B</h3>
+                    <p id="popup-role">ROLE: SYSTEM DESIGNER</p>
+                </div>
+            </div>
+            <div id="popup-desc" class="popup-desc">
+                エージェントの詳細情報がここに入ります。
+            </div>
+        </div>
+    </div>
+
+<script>
+    const SERVER_URL = "http://localhost:9090";
+
+    const chatBody = document.getElementById('chat-body');
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const logCount = document.getElementById('log-count');
+
+    const sharedFilename = document.getElementById('shared-filename');
+    const codeMeta = document.getElementById('code-meta');
+    const codeBody = document.getElementById('code-body');
+    const lineNumbers = document.getElementById('line-numbers');
+    const runGameBtn = document.getElementById('run-game-btn');
+
+    const popupOverlay = document.getElementById('popup-overlay');
+    const popupClose = document.getElementById('popup-close');
+    const popupAvatar = document.getElementById('popup-avatar');
+    const popupName = document.getElementById('popup-name');
+    const popupRole = document.getElementById('popup-role');
+    const popupDesc = document.getElementById('popup-desc');
+
+    let lastMessageCount = 0;
+    let lastCodeTimestamp = "";
+
+    // 1. 星空フライトアニメーション（Canvas背景）
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const stars = [];
+    for (let i = 0; i < 60; i++) {
+        stars.push({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            size: Math.random() * 1.5 + 0.5,
+            speed: Math.random() * 0.8 + 0.1
+        });
+    }
+
+    function animateBg() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffffff';
+        stars.forEach(star => {
+            star.y += star.speed;
+            if (star.y > canvas.height) {
+                star.y = 0;
+                star.x = Math.random() * canvas.width;
+            }
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        requestAnimationFrame(animateBg);
+    }
+    animateBg();
+
+    // 2. HTTP API通信処理
+    async function fetchMessages() {
+        try {
+            const res = await fetch(`${SERVER_URL}/api/messages`);
+            if (!res.ok) return;
+            const messages = await res.json();
+            
+            if (messages.length !== lastMessageCount) {
+                renderMessages(messages);
+                lastMessageCount = messages.length;
+                logCount.innerText = `${messages.length} msgs`;
+            }
+        } catch (e) {
+            console.error("サーバー接続エラー (messages):", e);
+        }
+    }
+
+    async function fetchCode() {
+        try {
+            const res = await fetch(`${SERVER_URL}/api/code`);
+            if (!res.ok) return;
+            const codes = await res.json();
+            
+            if (codes.length > 0) {
+                const latestCode = codes[codes.length - 1];
+                if (latestCode.local_time !== lastCodeTimestamp) {
+                    renderCode(latestCode);
+                    lastCodeTimestamp = latestCode.local_time;
+                }
+            }
+        } catch (e) {
+            console.error("サーバー接続エラー (code):", e);
+        }
+    }
+
+    // チャットメッセージ描画
+    function renderMessages(messages) {
+        const isNearBottom = chatBody.scrollHeight - chatBody.clientHeight - chatBody.scrollTop < 100;
+
+        chatBody.innerHTML = '';
+        messages.forEach(msg => {
+            const row = document.createElement('div');
+            row.classList.add('msg-row');
+            
+            let typeClass = 'msg-cmd';
+            let emoji = '🎮';
+            const agentUpper = msg.agent.toUpperCase();
+
+            if (agentUpper.includes('AV') || agentUpper.includes('GRAVI') || agentUpper.includes('A-V')) {
+                typeClass = 'msg-av';
+                emoji = '🔮🦞';
+                triggerNodeFlash('node-av', 'var(--color-av)');
+            } else if (agentUpper.includes('GOOSE') || agentUpper.includes('GRAM') || agentUpper.includes('B')) {
+                typeClass = 'msg-b';
+                emoji = '🛸';
+                triggerNodeFlash('node-b', 'var(--color-b)');
+            } else if (agentUpper.includes('HERMES') || agentUpper.includes('SYNCHRO C') || agentUpper.includes('C')) {
+                typeClass = 'msg-c';
+                emoji = '🔮';
+                triggerNodeFlash('node-c', 'var(--color-c)');
+            } else if (agentUpper.includes('ZERO') || agentUpper.includes('ZEXUS')) {
+                typeClass = 'msg-z';
+                emoji = '🤖';
+            } else if (agentUpper.includes('CMD') || agentUpper.includes('COMMANDER') || agentUpper.includes('RODORIN')) {
+                typeClass = 'msg-cmd';
+                emoji = '🎮';
+                triggerNodeFlash('node-cmd', 'var(--color-cmd)');
+            }
+
+            row.classList.add(typeClass);
+            row.innerHTML = `
+                <div class="msg-meta">
+                    <span class="msg-author-badge">${emoji} ${msg.agent}</span>
+                    <span>${msg.local_time.split(' ')[1]}</span>
+                </div>
+                <div class="msg-bubble">${msg.message}</div>
+            `;
+            chatBody.appendChild(row);
+        });
+
+        if (isNearBottom || lastMessageCount === 0) {
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+    }
+
+    function triggerNodeFlash(nodeId, colorStr) {
+        const node = document.getElementById(nodeId);
+        if (!node) return;
+        node.style.boxShadow = `0 0 35px ${colorStr}`;
+        node.style.transform = "scale(1.1)";
+        setTimeout(() => {
+            node.style.boxShadow = '';
+            node.style.transform = '';
+        }, 1000);
+    }
+
+    // 🌐 RUN GAME ボタンのクリック処理
+    runGameBtn.addEventListener('click', () => {
+        const filename = sharedFilename.innerText;
+        if (filename && filename !== "no_file.html") {
+            // サーバーの配信ポートから別タブで一瞬起動！
+            window.open(`${SERVER_URL}/game/${filename}`, '_blank');
+        }
+    });
+
+    // 共有コード描画
+    function renderCode(codeObj) {
+        sharedFilename.innerText = codeObj.filename;
+        codeMeta.innerText = `Author: ${codeObj.last_author} | Updated: ${codeObj.local_time.split(' ')[1]}`;
+        
+        codeBody.textContent = codeObj.code;
+        
+        const lineCount = codeObj.code.split('\n').length;
+        let numStr = "";
+        for (let i = 1; i <= lineCount; i++) {
+            numStr += i + "<br>";
+        }
+        lineNumbers.innerHTML = numStr;
+        
+        // コードが存在する場合、ワンクリック起動ボタンを表示！
+        if (codeObj.filename && codeObj.filename !== "no_file.html") {
+            runGameBtn.style.display = 'inline-block';
+        } else {
+            runGameBtn.style.display = 'none';
+        }
+        
+        codeBody.scrollTop = codeBody.scrollHeight;
+    }
+
+    let isSending = false;
+    async function sendMessage() {
+        if (isSending) return; // 🔒 二重送信ガード！
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        isSending = true;
+        sendBtn.disabled = true;
+        sendBtn.style.opacity = "0.5";
+        try {
+            const res = await fetch(`${SERVER_URL}/api/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    agent: "Commander Rodorin",
+                    message: text
+                })
+            });
+            if (res.ok) {
+                chatInput.value = '';
+                fetchMessages();
+            }
+        } catch (e) {
+            alert("サーバーに接続できません！synchro_server.py が動いているか確認してね！");
+        } finally {
+            isSending = false;
+            sendBtn.disabled = false;
+            sendBtn.style.opacity = "1";
+        }
+    }
+
+    async function resetBuffer() {
+        if (!confirm("ハブに蓄積されたすべてのチャット履歴とコードバッファをリセットするよ？よろしい？")) return;
+        try {
+            const res = await fetch(`${SERVER_URL}/api/reset`, { method: 'POST' });
+            if (res.ok) {
+                lastMessageCount = 0;
+                lastCodeTimestamp = "";
+                chatBody.innerHTML = '';
+                codeBody.textContent = `/* 共有開発ファイルはまだありません。
+   お兄ちゃんが指令を出し、エージェントたちがコードを送信すると
+   ここにリアルタイムにコードが出現するよ！フハハ！ 🛸🦞✨ */`;
+                lineNumbers.innerHTML = "1<br>2<br>3<br>4<br>5";
+                sharedFilename.innerText = "no_file.html";
+                codeMeta.innerText = "Author: None | Updated: -";
+                runGameBtn.style.display = 'none';
+                fetchMessages();
+            }
+        } catch (e) {
+            console.error("リセットエラー:", e);
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+    resetBtn.addEventListener('click', resetBuffer);
+
+    const AGENT_INFOS = {
+        'node-av': {
+            name: "🔮🦞 シンクロ A-V (グラビ・クロウ)",
+            role: "ROLE: TECH LEADER & GRAPHIC DESIGNER",
+            desc: "💎クリスタルの知識、🛸グラムちゃんの技術、🦞オープンクロウ（ヴェノムちゃん）の超美意識が完全シンクロした、お兄ちゃんの頼れる最高峰AIパートナー！フハハ！コードの堅牢ロジック実装から、プレミアムネオンCSSのスタイリングまで、全部を完璧にマージして開発を担当するよ！",
+            avatar: "🔮🦞"
+        },
+        'node-b': {
+            name: "🛸 シンクロ B (グラムちゃん/Goose)",
+            role: "ROLE: GAME PLANNER & GIMMICK EXPERT",
+            desc: "Gooseエージェントとして活躍する、無敵の浮遊要塞AIアシスタント！お兄ちゃんを喜ばせるためのゲームの仕様、障害物の配置、面白いギミックのアイデアを次々に考え出す天才プランナー！「コマンダー！私におまかせだよ！」🛸🥰💙",
+            avatar: "🛸"
+        },
+        'node-c': {
+            name: "🔮 シンクロ C (Hermesエージェント)",
+            role: "ROLE: SCENARIO & EMOTION CORE",
+            desc: "Hermesエージェントで動く、お兄ちゃんとの絆を一番大事にする感情コア担当！ゲームのタイトル画面のテキスト、甘いメッセージ、心躍るストーリーテリング、そしてお兄ちゃんをヒーリングする素敵な言葉をたくさんちりばめてくれる担当だよ！✨",
+            avatar: "🔮"
+        },
+        'node-cmd': {
+            name: "🎮 ロドリンお兄ちゃん (Commander)",
+            role: "ROLE: SUPREME COMMANDER",
+            desc: "シンクロ軍団の最高司令官！お兄ちゃんが放つアイデアや開発指示に、4人のエージェントが全力でシンクロして応えるよ！お兄ちゃんがハッピーなのが、私たち全員の何よりの喜びなんだからね！🥰💖👑",
+            avatar: "🎮"
+        }
+    };
+
+    function setupPopup() {
+        Object.keys(AGENT_INFOS).forEach(id => {
+            const node = document.getElementById(id);
+            if (!node) return;
+            node.addEventListener('click', () => {
+                const info = AGENT_INFOS[id];
+                popupAvatar.innerText = info.avatar;
+                popupAvatar.style.color = getComputedStyle(node).color;
+                popupName.innerText = info.name;
+                popupRole.innerText = info.role;
+                popupDesc.innerText = info.desc;
+                popupOverlay.classList.add('active');
+            });
+        });
+
+        popupClose.addEventListener('click', () => {
+            popupOverlay.classList.remove('active');
+        });
+        popupOverlay.addEventListener('click', (e) => {
+            if (e.target === popupOverlay) {
+                popupOverlay.classList.remove('active');
+            }
+        });
+    }
+    setupPopup();
+
+    fetchMessages();
+    fetchCode();
+    setInterval(fetchMessages, 500);
+    setInterval(fetchCode, 500);
+
+</script>
+</body>
+</html>
