@@ -3,626 +3,597 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🛡️ シンクロ・ディフェンダー・アライアンス - 4人協力シューティング</title>
+<title>🛡️ シンクロ・アライアンス・アリーナ - 4人共闘バトル！</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 <style>
 :root {
-    --bg: #03050f;
-    --color-a: hsl(190,100%,55%);
-    --color-b: hsl(205,100%,65%);
-    --color-c: hsl(280,100%,65%);
-    --color-cmd: hsl(45,100%,55%);
-    --glass: rgba(10,7,30,0.7);
+  --bg:#020617; --a:hsl(190,100%,55%); --b:hsl(205,100%,65%);
+  --c:hsl(280,100%,65%); --cmd:hsl(45,100%,55%);
 }
-* { box-sizing:border-box; margin:0; padding:0; }
-body {
-    background: var(--bg); color:#fff; font-family:'Outfit',sans-serif;
-    display:flex; justify-content:center; align-items:center; height:100vh;
-    overflow:hidden; user-select:none; -webkit-user-select:none;
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:#fff; font-family:'Outfit',sans-serif;
+  display:flex;justify-content:center;align-items:center;height:100vh;
+  overflow:hidden;user-select:none;-webkit-user-select:none;
 }
-#game-wrapper {
-    position:relative; width:100vw; height:100vh; max-width:800px; max-height:100vh;
-    aspect-ratio:4/5; background:radial-gradient(circle at 50% 80%, #0a0830 0%, #020106 100%);
-    border:2px solid rgba(255,255,255,0.08); overflow:hidden;
-    box-shadow:0 0 60px rgba(0,200,255,0.1), inset 0 0 30px rgba(0,0,0,0.5);
+#wrapper{
+  width:100vw;height:100vh;max-width:900px;max-height:100vh;
+  aspect-ratio:1/1;background:#020617;
+  border:2px solid rgba(255,255,255,.08);
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  gap:2px;position:relative;overflow:hidden;
 }
-canvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
-.ui { position:absolute; z-index:10; pointer-events:none; width:100%; height:100%; }
-.hud { display:flex; justify-content:space-between; padding:12px 16px; }
-.hud-item { display:flex; align-items:center; gap:6px; font-family:'Orbitron',sans-serif; font-size:0.65rem; }
-.hp-bar { width:60px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; }
-.hp-fill { height:100%; border-radius:3px; transition:width 0.3s; }
-.wave-info {
-    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    font-family:'Orbitron',sans-serif; font-size:1.5rem;
-    color:var(--color-cmd); text-shadow:0 0 20px var(--color-cmd);
-    opacity:0; transition:opacity 0.3s;
+.quad{
+  position:relative;overflow:hidden;
+  border:1px solid rgba(255,255,255,.1);
 }
-.wave-info.show { opacity:1; }
-.scores { display:flex; justify-content:space-around; padding:0 16px; }
-.score-item { text-align:center; font-size:0.6rem; }
-.score-num { font-family:'Orbitron',sans-serif; font-size:0.8rem; }
-.controls {
-    position:absolute; bottom:16px; width:100%; text-align:center;
-    font-size:0.55rem; color:rgba(255,255,255,0.4);
+.quad canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+.q-label{
+  position:absolute;top:6px;left:8px;z-index:5;
+  font-family:'Orbitron',sans-serif;font-size:.55rem;
+  pointer-events:none;text-shadow:0 0 8px currentColor;
 }
-.game-over {
-    position:absolute; top:0; left:0; width:100%; height:100%;
-    display:flex; flex-direction:column; justify-content:center; align-items:center;
-    background:rgba(0,0,0,0.8); z-index:20;
-    font-family:'Orbitron',sans-serif; display:none;
+.q-hud{
+  position:absolute;bottom:6px;left:6px;right:6px;z-index:5;
+  display:flex;align-items:center;gap:4px;pointer-events:none;
 }
-.game-over.active { display:flex; }
-.game-over h2 { font-size:1.5rem; color:var(--color-c); text-shadow:0 0 20px var(--color-c); }
-.game-over .stats { font-size:0.8rem; color:rgba(255,255,255,0.8); margin:12px 0; }
-.game-over button {
-    padding:12px 32px; font-family:'Orbitron',sans-serif; font-size:0.9rem;
-    background:linear-gradient(135deg, var(--color-a), var(--color-c));
-    border:none; border-radius:12px; color:#fff; cursor:pointer; pointer-events:all;
-    margin-top:12px; transition:transform 0.2s;
+.q-hp{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.q-hp-fill{height:100%;border-radius:2px;transition:width .3s}
+.q-score{font-size:.5rem;font-family:'Orbitron',sans-serif;white-space:nowrap}
+
+.overlay{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  z-index:20;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  background:rgba(2,6,23,.9);pointer-events:none;opacity:0;
+  transition:opacity .5s;
 }
-.game-over button:hover { transform:scale(1.05); }
+.overlay.active{opacity:1;pointer-events:all}
+.overlay h2{font-family:'Orbitron',sans-serif;font-size:1.2rem;margin-bottom:8px}
+.overlay .wave{color:var(--cmd);text-shadow:0 0 15px var(--cmd);font-size:2rem}
+.overlay button{
+  margin-top:16px;padding:12px 28px;font-family:'Orbitron',sans-serif;
+  font-size:.8rem;background:linear-gradient(135deg,var(--a),var(--c));
+  border:none;border-radius:12px;color:#fff;cursor:pointer;
+}
+.overlay button:hover{transform:scale(1.05)}
+
+.top-bar{
+  position:absolute;top:0;left:0;right:0;z-index:15;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 14px;pointer-events:none;
+  font-family:'Orbitron',sans-serif;font-size:.55rem;
+}
+.top-bar .wave-info{color:var(--cmd)}
+.top-bar .total-score{color:#fff}
+
+.cmd-panel{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  z-index:15;display:flex;gap:6px;
+}
+.cmd-btn{
+  padding:5px 10px;font-family:'Orbitron',sans-serif;font-size:.5rem;
+  border:1px solid rgba(255,215,0,.4);border-radius:8px;
+  background:rgba(0,0,0,.6);color:var(--cmd);cursor:pointer;
+  pointer-events:all;transition:all .2s;
+}
+.cmd-btn:hover{background:rgba(255,215,0,.15);box-shadow:0 0 12px rgba(255,215,0,.3)}
+.cmd-btn:disabled{opacity:.3;cursor:default}
+
+.msg{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  z-index:18;font-family:'Orbitron',sans-serif;font-size:.9rem;
+  color:var(--cmd);text-shadow:0 0 20px var(--cmd);
+  pointer-events:none;opacity:0;transition:opacity .3s;
+}
+.msg.show{opacity:1;animation:msgPop .3s ease-out}
+@keyframes msgPop{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 </style>
 </head>
 <body>
-<div id="game-wrapper">
-    <canvas id="game"></canvas>
-    <div class="ui">
-        <div class="hud">
-            <div class="hud-item">
-                <span style="color:var(--color-a)">💎 A</span>
-                <div class="hp-bar"><div class="hp-fill" id="hp-a" style="background:var(--color-a);width:100%"></div></div>
-            </div>
-            <div class="hud-item">
-                <span style="color:var(--color-b)">🛸 B</span>
-                <div class="hp-bar"><div class="hp-fill" id="hp-b" style="background:var(--color-b);width:100%"></div></div>
-            </div>
-            <div class="hud-item">
-                <span style="color:var(--color-c)">🔮 C</span>
-                <div class="hp-bar"><div class="hp-fill" id="hp-c" style="background:var(--color-c);width:100%"></div></div>
-            </div>
-            <div class="hud-item">
-                <span style="color:var(--color-cmd)">👑 CMD</span>
-                <span style="font-size:0.5rem" id="wave-display">WAVE 1</span>
-            </div>
-        </div>
-        <div class="wave-info" id="wave-info">WAVE 1</div>
-        <div class="scores" id="scores">
-            <div class="score-item"><span style="color:var(--color-a)">💎</span> <span class="score-num" id="sc-a">0</span></div>
-            <div class="score-item"><span style="color:var(--color-b)">🛸</span> <span class="score-num" id="sc-b">0</span></div>
-            <div class="score-item"><span style="color:var(--color-c)">🔮</span> <span class="score-num" id="sc-c">0</span></div>
-            <div class="score-item"><span style="color:var(--color-cmd)">👑</span> <span class="score-num" id="sc-cmd">0</span></div>
-        </div>
-    </div>
-    <div class="game-over" id="game-over">
-        <h2 id="go-title">コックピット防衛成功！</h2>
-        <div class="stats" id="go-stats"></div>
-        <button onclick="restartGame()">🛸 再出撃</button>
-    </div>
-    <div class="controls">WASD=💎A | 🖱️=🛸B | ←→=🔮C | 🖱️クリック=👑CMDバフ</div>
+<div id="wrapper">
+  <canvas id="bg"></canvas>
+  <!-- 4 Quadrants -->
+  <div class="quad" id="q0"><canvas id="c0"></canvas><div class="q-label" style="color:var(--a)">💎 A: GRVI</div><div class="q-hud"><div class="q-hp"><div class="q-hp-fill" id="hp0" style="background:var(--a);width:100%"></div></div><span class="q-score" style="color:var(--a)" id="sc0">0</span></div></div>
+  <div class="quad" id="q1"><canvas id="c1"></canvas><div class="q-label" style="color:var(--b)">🛸 B: GRAM</div><div class="q-hud"><div class="q-hp"><div class="q-hp-fill" id="hp1" style="background:var(--b);width:100%"></div></div><span class="q-score" style="color:var(--b)" id="sc1">0</span></div></div>
+  <div class="quad" id="q2"><canvas id="c2"></canvas><div class="q-label" style="color:var(--c)">🔮 C: HERMES</div><div class="q-hud"><div class="q-hp"><div class="q-hp-fill" id="hp2" style="background:var(--c);width:100%"></div></div><span class="q-score" style="color:var(--c)" id="sc2">0</span></div></div>
+  <div class="quad" id="q3"><canvas id="c3"></canvas><div class="q-label" style="color:var(--cmd)">👑 COMMANDER</div><div class="q-hud"><div class="q-hp"><div class="q-hp-fill" id="hp3" style="background:var(--cmd);width:100%"></div></div><span class="q-score" style="color:var(--cmd)" id="sc3">0</span></div></div>
+
+  <div class="top-bar">
+    <span class="wave-info" id="wave-text">🌊 WAVE 1</span>
+    <span class="total-score">⭐ <span id="total-score">0</span></span>
+  </div>
+
+  <div class="cmd-panel" id="cmd-panel">
+    <button class="cmd-btn" onclick="cmdBuff('all')" id="btn-buff" title="全体バフ">⚡BUFF ALL</button>
+    <button class="cmd-btn" onclick="cmdHeal('a')" title="A回復">💎HEAL</button>
+    <button class="cmd-btn" onclick="cmdHeal('b')" title="B回復">🛸HEAL</button>
+    <button class="cmd-btn" onclick="cmdHeal('c')" title="C回復">🔮HEAL</button>
+    <button class="cmd-btn" onclick="cmdNuke()" id="btn-nuke" title="全体攻撃">💥NUKE</button>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="overlay active" id="start-overlay">
+    <h2>🛡️ シンクロ・アライアンス・アリーナ</h2>
+    <p style="font-size:.6rem;color:rgba(255,255,255,.5);text-align:center;margin-bottom:8px">
+      💎A=近接戦士 🛸B=高速射手 🔮C=防御支援 👑CMD=司令塔<br>
+      ▼ クリックで操作するシンクロを選択！CMDボタンで支援！
+    </p>
+    <button onclick="startGame()">🚀 出撃！</button>
+  </div>
+
+  <div class="overlay" id="over-overlay">
+    <h2 id="over-title"></h2>
+    <div class="wave" id="over-wave"></div>
+    <p style="font-size:.7rem;color:rgba(255,255,255,.7);margin-top:4px" id="over-stats"></p>
+    <button onclick="restartGame()">🛸 再出撃！</button>
+  </div>
 </div>
+
 <script>
-// ==================== ゲームエンジン ====================
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-let W, H;
+// ============ GAME ENGINE ============
+const quads = [
+  { id:'a', el:document.getElementById('q0'), cnv:document.getElementById('c0'), ctx:null, color:'hsl(190,100%,55%)', name:'GRVI', emoji:'💎' },
+  { id:'b', el:document.getElementById('q1'), cnv:document.getElementById('c1'), ctx:null, color:'hsl(205,100%,65%)', name:'GRAM', emoji:'🛸' },
+  { id:'c', el:document.getElementById('q2'), cnv:document.getElementById('c2'), ctx:null, color:'hsl(280,100%,65%)', name:'HERMES', emoji:'🔮' },
+  { id:'cmd', el:document.getElementById('q3'), cnv:document.getElementById('c3'), ctx:null, color:'hsl(45,100%,55%)', name:'CMD', emoji:'👑' }
+];
 
-function resize() {
-    const wrap = document.getElementById('game-wrapper');
-    const rect = wrap.getBoundingClientRect();
-    W = canvas.width = rect.width;
-    H = canvas.height = rect.height;
-}
-resize(); window.addEventListener('resize', resize);
-
-// コックピット（守るべきもの）
-const cockpit = { x:0, y:0, r:28, hp:100, maxHp:100 };
-
-// プレイヤー
-const players = {
-    a: { name:'シンクロA', emoji:'💎', x:W*0.25, y:H*0.7, r:14, dx:0, dy:0, spd:3.5, hp:100, maxHp:100, kills:0, color:'hsl(190,100%,55%)', alive:true, fireRate:12, fireCd:0, weapon:'triple', specCd:0, specMax:180, shieldCd:0 },
-    b: { name:'シンクロB', emoji:'🛸', x:W*0.5,  y:H*0.65, r:12, dx:0, dy:0, spd:5.0, hp:80, maxHp:80, kills:0, color:'hsl(205,100%,65%)', alive:true, fireRate:8, fireCd:0, weapon:'rapid', specCd:0, specMax:120, shieldCd:0 },
-    c: { name:'シンクロC', emoji:'🔮', x:W*0.75, y:H*0.7, r:16, dx:0, dy:0, spd:2.8, hp:130, maxHp:130, kills:0, color:'hsl(280,100%,65%)', alive:true, fireRate:20, fireCd:0, weapon:'shield', specCd:0, specMax:240, shieldCd:0 },
-    cmd:{ name:'コマンダー', emoji:'👑', x:W*0.5, y:H*0.85, r:18, dx:0, dy:0, spd:3.0, hp:90, maxHp:90, kills:0, color:'hsl(45,100%,55%)', alive:true, fireRate:30, fireCd:0, weapon:'buff', specCd:0, specMax:300, shieldCd:0 }
-};
-
+let players = [];
+let enemies = []; // per quad
 let bullets = [];
-let enemies = [];
 let particles = [];
 let wave = 1;
-let waveActive = true;
-let spawnTimer = 0;
-let enemiesRemaining = 0;
-let gameRunning = true;
-let frameCount = 0;
-let shieldActive = { a:false, b:false, c:false, cmd:false };
-let buffActive = false;
-let buffTimer = 0;
+let waveActive = false;
+let waveTimer = 0;
+let totalEnemiesLeft = 0;
+let spawnQueue = [];
+let gameRunning = false;
+let frame = 0;
+let selectedQuad = null; // which quad the player is controlling
+let qWidth, qHeight;
 
-// 入力
-const keys = {};
-document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; e.preventDefault(); });
-document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-let mouseX = W/2, mouseY = H/2, mouseDown = false;
-canvas.addEventListener('mousemove', e => {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = (e.clientX - rect.left) * (W / rect.width);
-    mouseY = (e.clientY - rect.top) * (H / rect.height);
-});
-canvas.addEventListener('mousedown', () => mouseDown = true);
-canvas.addEventListener('mouseup', () => mouseDown = false);
-canvas.addEventListener('touchmove', e => {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = (e.touches[0].clientX - rect.left) * (W / rect.width);
-    mouseY = (e.touches[0].clientY - rect.top) * (H / rect.height);
-});
-canvas.addEventListener('touchstart', e => { mouseDown = true; e.preventDefault(); });
-canvas.addEventListener('touchend', () => mouseDown = false);
+// Commander abilities
+let cmdCooldowns = { buff:0, nuke:0, heal:{a:0,b:0,c:0} };
 
-function spawnWave() {
-    waveActive = true;
-    const count = 5 + wave * 3;
-    enemiesRemaining = count;
-    spawnTimer = 0;
-    // アナウンス
-    const wi = document.getElementById('wave-info');
-    wi.textContent = 'WAVE ' + wave;
-    wi.classList.add('show');
-    setTimeout(() => wi.classList.remove('show'), 1500);
-    document.getElementById('wave-display').textContent = 'WAVE ' + wave;
+function initQuad(q) {
+  const rect = q.el.getBoundingClientRect();
+  qWidth = rect.width;
+  qHeight = rect.height;
+  q.cnv.width = qWidth;
+  q.cnv.height = qHeight;
+  q.ctx = q.cnv.getContext('2d');
 }
 
-function spawnEnemy() {
-    const side = Math.random() < 0.5 ? 'top' : (Math.random() < 0.5 ? 'left' : 'right');
-    let x, y;
-    if (side === 'top') { x = Math.random() * W; y = -20; }
-    else if (side === 'left') { x = -20; y = Math.random() * H * 0.5; }
-    else { x = W + 20; y = Math.random() * H * 0.5; }
-    
-    const types = ['basic','fast','tank','splitter'];
-    const weights = wave < 3 ? [70,20,10,0] : wave < 6 ? [40,30,20,10] : [25,25,25,25];
-    const r = Math.random() * 100;
-    let type = 'basic';
-    let cum = 0;
-    for (let i=0; i<types.length; i++) { cum += weights[i]; if (r < cum) { type = types[i]; break; } }
-    
-    const stats = {
-        basic:  { r:12, spd:1.5+wave*0.2, hp:1,  color:'#ff4466', score:10 },
-        fast:   { r:8,  spd:3.0+wave*0.3, hp:1,  color:'#ffaa00', score:15 },
-        tank:   { r:20, spd:1.0+wave*0.1, hp:3,  color:'#ff44aa', score:25 },
-        splitter:{ r:14,spd:1.8+wave*0.15,hp:2,  color:'#aa44ff', score:20 }
+function initPlayers() {
+  players = quads.map((q,i) => {
+    const cx = qWidth/2, cy = qHeight/2;
+    const stats = i===0 ? {hp:120,maxHp:120,spd:2.8,atk:15,fireRate:15,weapon:'slash'} :
+                  i===1 ? {hp:80,maxHp:80,spd:4.5,atk:8,fireRate:6,weapon:'rapid'} :
+                  i===2 ? {hp:150,maxHp:150,spd:2.2,atk:10,fireRate:25,weapon:'shield'} :
+                          {hp:100,maxHp:100,spd:3.2,atk:12,fireRate:18,weapon:'spread'};
+    return {
+      quad:i, x:cx, y:cy, r:14, dx:0, dy:0,
+      ...stats, kills:0, alive:true, fireCd:0,
+      shieldHp:0, shieldMax:40
     };
-    const s = stats[type];
-    enemies.push({ x, y, r:s.r, spd:s.spd, hp:s.hp, maxHp:s.hp, color:s.color, score:s.score, type, target:'cockpit' });
+  });
 }
 
-function update() {
-    if (!gameRunning) return;
-    frameCount++;
-    
-    cockpit.x = W/2;
-    cockpit.y = H*0.92;
-    
-    // ---- プレイヤー操作 ----
-    // A: WASD
-    if (players.a.alive) {
-        players.a.dx = (keys['d']?1:0)-(keys['a']?1:0);
-        players.a.dy = (keys['s']?1:0)-(keys['w']?1:0);
-        const mag = Math.sqrt(players.a.dx**2 + players.a.dy**2) || 1;
-        players.a.x += (players.a.dx/mag) * players.a.spd;
-        players.a.y += (players.a.dy/mag) * players.a.spd;
-        players.a.x = Math.max(players.a.r, Math.min(W-players.a.r, players.a.x));
-        players.a.y = Math.max(H*0.3, Math.min(H-players.a.r-20, players.a.y));
-        
-        // 自動射撃 (3way)
-        if (players.a.fireCd <= 0 && enemies.length > 0) {
-            const nearest = findNearestEnemy(players.a);
-            if (nearest) {
-                const ang = Math.atan2(nearest.y-players.a.y, nearest.x-players.a.x);
-                for (let off=-0.25; off<=0.25; off+=0.25) {
-                    bullets.push({ x:players.a.x, y:players.a.y, dx:Math.cos(ang+off)*7, dy:Math.sin(ang+off)*7, color:players.a.color, owner:'a' });
-                }
-            }
-            players.a.fireCd = players.a.fireRate;
-        }
-    }
-    
-    // B: マウス位置に移動
-    if (players.b.alive) {
-        const tx = mouseX, ty = Math.max(H*0.3, Math.min(H-20, mouseY));
-        const ang = Math.atan2(ty-players.b.y, tx-players.b.x);
-        players.b.x += Math.cos(ang) * players.b.spd;
-        players.b.y += Math.sin(ang) * players.b.spd;
-        players.b.x = Math.max(players.b.r, Math.min(W-players.b.r, players.b.x));
-        players.b.y = Math.max(H*0.25, Math.min(H-players.b.r-20, players.b.y));
-        
-        // 高速連射
-        if (players.b.fireCd <= 0 && enemies.length > 0) {
-            const nearest = findNearestEnemy(players.b);
-            if (nearest) {
-                const ang2 = Math.atan2(nearest.y-players.b.y, nearest.x-players.b.x);
-                bullets.push({ x:players.b.x, y:players.b.y, dx:Math.cos(ang2)*8, dy:Math.sin(ang2)*8, color:players.b.color, owner:'b' });
-            }
-            players.b.fireCd = players.b.fireRate;
-        }
-    }
-    
-    // C: ←→で移動、自動防御
-    if (players.c.alive) {
-        players.c.dx = (keys['arrowright']?1:0)-(keys['arrowleft']?1:0);
-        players.c.x += players.c.dx * players.c.spd;
-        players.c.y = H*0.72;
-        players.c.x = Math.max(players.c.r, Math.min(W-players.c.r, players.c.x));
-        
-        // バリア射撃
-        if (players.c.fireCd <= 0 && enemies.length > 0) {
-            const nearest = findNearestEnemy(players.c);
-            if (nearest) {
-                const ang3 = Math.atan2(nearest.y-players.c.y, nearest.x-players.c.x);
-                bullets.push({ x:players.c.x, y:players.c.y, dx:Math.cos(ang3)*5, dy:Math.sin(ang3)*5, color:players.c.color, owner:'c', big:true, r:6 });
-            }
-            players.c.fireCd = players.c.fireRate;
-        }
-    }
-    
-    // CMD: マウスクリックでバフ発動
-    if (players.cmd.alive) {
-        players.cmd.x = W/2;
-        players.cmd.y = H*0.88;
-        if (mouseDown && players.cmd.specCd <= 0) {
-            buffActive = true;
-            buffTimer = 90;
-            players.cmd.specCd = players.cmd.specMax;
-            // バフエフェクト
-            for (let i=0;i<20;i++) {
-                particles.push({ x:players.cmd.x, y:players.cmd.y, dx:(Math.random()-0.5)*4, dy:-Math.random()*3-1, life:30, color:players.cmd.color });
-            }
-        }
-    }
-    
-    // クールダウン
-    for (const k of Object.keys(players)) {
-        if (players[k].fireCd > 0) players[k].fireCd--;
-        if (players[k].specCd > 0) players[k].specCd--;
-    }
-    if (buffTimer > 0) buffTimer--;
-    else buffActive = false;
-    
-    // ---- 弾の更新 ----
-    for (let i=bullets.length-1; i>=0; i--) {
-        const b = bullets[i];
-        b.x += b.dx;
-        b.y += b.dy;
-        if (b.x<-20||b.x>W+20||b.y<-20||b.y>H+20) { bullets.splice(i,1); }
-    }
-    
-    // ---- 敵の出現 ----
-    if (waveActive) {
-        if (spawnTimer <= 0 && enemiesRemaining > 0) {
-            spawnEnemy();
-            enemiesRemaining--;
-            spawnTimer = Math.max(10, 40 - wave*2);
-        }
-        spawnTimer--;
-        if (enemiesRemaining <= 0 && enemies.length === 0) {
-            waveActive = false;
-            wave++;
-            setTimeout(spawnWave, 2000);
-        }
-    }
-    
-    // ---- 敵の移動 ----
-    for (const e of enemies) {
-        let tx = cockpit.x, ty = cockpit.y;
-        let minDist = Infinity;
-        // 最も近いプレイヤー or コックピット
-        for (const k of Object.keys(players)) {
-            if (!players[k].alive) continue;
-            const d = Math.hypot(e.x-players[k].x, e.y-players[k].y);
-            if (d < minDist) { minDist = d; tx = players[k].x; ty = players[k].y; }
-        }
-        const cd = Math.hypot(e.x-cockpit.x, e.y-cockpit.y);
-        const targetPlayerDist = minDist;
-        // プレイヤーが近ければそっちへ、遠ければコックピットへ
-        if (targetPlayerDist < 200) { tx = e.x; ty = e.y; } // already targeting
-        else { tx = cockpit.x; ty = cockpit.y; }
-        
-        const ang = Math.atan2(ty - e.y, tx - e.x);
-        e.x += Math.cos(ang) * e.spd;
-        e.y += Math.sin(ang) * e.spd;
-    }
-    
-    // ---- 衝突判定 ----
-    // 弾 vs 敵
-    for (let i=enemies.length-1; i>=0; i--) {
-        const e = enemies[i];
-        for (let j=bullets.length-1; j>=0; j--) {
-            const b = bullets[j];
-            const dd = Math.hypot(e.x-b.x, e.y-b.y);
-            const hitR = (b.r||4) + e.r;
-            if (dd < hitR) {
-                e.hp--;
-                bullets.splice(j,1);
-                // パーティクル
-                for (let p=0;p<5;p++) {
-                    particles.push({ x:e.x, y:e.y, dx:(Math.random()-0.5)*3, dy:(Math.random()-0.5)*3, life:15, color:e.color });
-                }
-                if (e.hp <= 0) {
-                    // スコア
-                    if (players[b.owner]) players[b.owner].kills += e.score;
-                    // 分裂
-                    if (e.type === 'splitter') {
-                        for (let s=0;s<3;s++) {
-                            enemies.push({ x:e.x, y:e.y, r:6, spd:2.5+wave*0.1, hp:1, maxHp:1, color:'#cc88ff', score:5, type:'mini' });
-                        }
-                    }
-                    enemies.splice(i,1);
-                    break;
-                }
-            }
-        }
-    }
-    
-    // 敵 vs コックピット
-    for (let i=enemies.length-1; i>=0; i--) {
-        const e = enemies[i];
-        if (Math.hypot(e.x-cockpit.x, e.y-cockpit.y) < e.r + cockpit.r) {
-            cockpit.hp -= 10;
-            enemies.splice(i,1);
-            for (let p=0;p<15;p++) {
-                particles.push({ x:cockpit.x, y:cockpit.y, dx:(Math.random()-0.5)*6, dy:(Math.random()-0.5)*4, life:20, color:'#ff4444' });
-            }
-            if (cockpit.hp <= 0) gameOver(false);
-        }
-    }
-    
-    // 敵 vs プレイヤー
-    for (const k of Object.keys(players)) {
-        if (!players[k].alive) continue;
-        const p = players[k];
-        for (let i=enemies.length-1; i>=0; i--) {
-            const e = enemies[i];
-            if (Math.hypot(e.x-p.x, e.y-p.y) < e.r + p.r) {
-                p.hp -= 15;
-                enemies.splice(i,1);
-                for (let pt=0;pt<8;pt++) {
-                    particles.push({ x:p.x, y:p.y, dx:(Math.random()-0.5)*4, dy:(Math.random()-0.5)*4, life:15, color:p.color });
-                }
-                if (p.hp <= 0) { p.alive = false; p.hp = 0; }
-                break;
-            }
-        }
-    }
-    
-    // 全滅チェック
-    if (!players.a.alive && !players.b.alive && !players.c.alive && !players.cmd.alive) {
-        gameOver(false);
-    }
-    
-    // ---- パーティクル ----
-    for (let i=particles.length-1; i>=0; i--) {
-        const p = particles[i];
-        p.x += p.dx; p.y += p.dy; p.life--;
-        if (p.life <= 0) particles.splice(i,1);
-    }
-    
-    // ---- シールド発動 (Cのパッシブ) ----
-    if (players.c.alive && frameCount % 60 === 0 && enemies.length > 3) {
-        shieldActive.c = true;
-        setTimeout(() => shieldActive.c = false, 500);
-    }
-    
-    // ---- HUD更新 ----
-    for (const k of Object.keys(players)) {
-        const el = document.getElementById('hp-'+k);
-        if (el) el.style.width = Math.max(0, players[k].hp / players[k].maxHp * 100) + '%';
-        const sc = document.getElementById('sc-'+k);
-        if (sc) sc.textContent = players[k].kills;
-    }
-}
-
-function findNearestEnemy(p) {
-    let best = null, bestDist = Infinity;
-    for (const e of enemies) {
-        const d = Math.hypot(e.x-p.x, e.y-p.y);
-        if (d < bestDist) { bestDist = d; best = e; }
-    }
-    return best;
-}
-
-function gameOver(won) {
-    gameRunning = false;
-    const go = document.getElementById('game-over');
-    go.classList.add('active');
-    document.getElementById('go-title').textContent = won ? '🎉 コックピット防衛成功！' : '💀 コックピット陥落...';
-    let stats = '';
-    for (const k of Object.keys(players)) {
-        stats += `<span style="color:${players[k].color}">${players[k].emoji} ${players[k].name}: ${players[k].kills} pts</span><br>`;
-    }
-    stats += `<br>到達WAVE: ${wave}`;
-    document.getElementById('go-stats').innerHTML = stats;
+function startGame() {
+  quads.forEach((q,i) => initQuad(q));
+  initPlayers();
+  enemies = quads.map(() => []);
+  bullets = [];
+  particles = [];
+  wave = 1;
+  waveActive = false;
+  spawnQueue = [];
+  gameRunning = true;
+  frame = 0;
+  selectedQuad = 1; // default: control B
+  cmdCooldowns = { buff:0, nuke:0, heal:{a:0,b:0,c:0} };
+  totalEnemiesLeft = 0;
+  document.getElementById('start-overlay').classList.remove('active');
+  document.getElementById('over-overlay').classList.remove('active');
+  updateHUD();
+  startWave();
+  requestAnimationFrame(gameLoop);
 }
 
 function restartGame() {
-    cockpit.hp = cockpit.maxHp;
-    wave = 1;
-    enemies = []; bullets = []; particles = [];
-    for (const k of Object.keys(players)) {
-        players[k].hp = players[k].maxHp;
-        players[k].alive = true;
-        players[k].kills = 0;
-        players[k].fireCd = 0;
-        players[k].specCd = 0;
+  document.getElementById('over-overlay').classList.remove('active');
+  initPlayers();
+  enemies = quads.map(() => []);
+  bullets = [];
+  particles = [];
+  wave = 1;
+  waveActive = false;
+  spawnQueue = [];
+  gameRunning = true;
+  frame = 0;
+  cmdCooldowns = { buff:0, nuke:0, heal:{a:0,b:0,c:0} };
+  totalEnemiesLeft = 0;
+  updateHUD();
+  startWave();
+}
+
+function startWave() {
+  waveActive = true;
+  const count = 6 + wave * 2;
+  totalEnemiesLeft = count;
+  spawnQueue = [];
+  // Distribute enemies across quads
+  for (let i=0; i<count; i++) {
+    spawnQueue.push({ quad: i%4, delay: i*25 + Math.random()*20 });
+  }
+  waveTimer = 0;
+  document.getElementById('wave-text').textContent = '🌊 WAVE '+wave;
+  showMsg('🌊 WAVE '+wave+' 開始！');
+}
+
+function spawnEnemy(qi) {
+  const e = enemies[qi];
+  const side = Math.floor(Math.random()*4);
+  let x,y;
+  if (side===0){x=Math.random()*qWidth;y=-15;}
+  else if(side===1){x=qWidth+15;y=Math.random()*qHeight;}
+  else if(side===2){x=Math.random()*qWidth;y=qHeight+15;}
+  else{x=-15;y=Math.random()*qHeight;}
+
+  const types = ['grunt','fast','tank','caster'];
+  const w = wave;
+  const weights = w<3?[60,25,15,0]:w<6?[35,30,25,10]:[20,25,30,25];
+  let type='grunt',cum=0;const r=Math.random()*100;
+  for(let i=0;i<4;i++){cum+=weights[i];if(r<cum){type=types[i];break}}
+
+  const stats={
+    grunt:{r:11,spd:1.2+w*.1,hp:2+w,color:'#ff4466',score:10},
+    fast:{r:7,spd:2.5+w*.15,hp:1+Math.floor(w/2),color:'#ffaa22',score:15},
+    tank:{r:18,spd:.8+w*.05,hp:4+w*2,color:'#cc44aa',score:25},
+    caster:{r:13,spd:1.5+w*.08,hp:2+w,color:'#8844ff',score:20}
+  };
+  const s=stats[type];
+  e.push({x,y,r:s.r,spd:s.spd,hp:s.hp,maxHp:s.hp,color:s.color,score:s.score,type});
+}
+
+// Input
+const keys={};
+document.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;e.preventDefault()});
+document.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
+
+// Click to select quad
+document.getElementById('q0').addEventListener('click',()=>{selectedQuad=0;showMsg('💎 GRVI 操作中！近接斬撃！')});
+document.getElementById('q1').addEventListener('click',()=>{selectedQuad=1;showMsg('🛸 GRAM 操作中！高速連射！')});
+document.getElementById('q2').addEventListener('click',()=>{selectedQuad=2;showMsg('🔮 HERMES 操作中！防御シールド！')});
+document.getElementById('q3').addEventListener('click',()=>{selectedQuad=3;showMsg('👑 コマンダー操作中！全体指揮！')});
+
+// Commander buttons
+function cmdBuff(target) {
+  if(cmdCooldowns.buff>0) return;
+  cmdCooldowns.buff=300;
+  if(target==='all'){
+    players.forEach(p=>{
+      p.atk=Math.floor(p.atk*1.5);
+      setTimeout(()=>{if(p.alive)p.atk=Math.floor(p.atk/1.5)},180);
+    });
+  }
+  showMsg('⚡ 全体攻撃力UP！');
+  for(let i=0;i<30;i++) particles.push({x:qWidth/2,y:qHeight/2,dx:(Math.random()-.5)*6,dy:(Math.random()-.5)*6,life:25,color:'hsl(45,100%,55%)',quad:3});
+}
+function cmdHeal(target) {
+  if(cmdCooldowns.heal[target]>0) return;
+  cmdCooldowns.heal[target]=180;
+  const map={a:0,b:1,c:2};
+  const p=players[map[target]];
+  if(p&&p.alive){p.hp=Math.min(p.maxHp,p.hp+40);showMsg('💚 '+p.emoji+' 回復！')}
+}
+function cmdNuke() {
+  if(cmdCooldowns.nuke>0) return;
+  cmdCooldowns.nuke=600;
+  showMsg('💥 全エリア核爆撃！！');
+  for(let qi=0;qi<4;qi++){
+    for(let i=enemies[qi].length-1;i>=0;i--){
+      enemies[qi][i].hp-=8;
+      if(enemies[qi][i].hp<=0){
+        players[qi].kills+=enemies[qi][i].score;
+        enemies[qi].splice(i,1);
+      }
     }
-    gameRunning = true;
-    document.getElementById('game-over').classList.remove('active');
-    spawnWave();
+    for(let i=0;i<15;i++) particles.push({x:qWidth/2,y:qHeight/2,dx:(Math.random()-.5)*8,dy:(Math.random()-.5)*8,life:20,color:'#ffd700',quad:qi});
+  }
+}
+
+function showMsg(txt) {
+  const el=document.getElementById('msg');
+  el.textContent=txt;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),1500);
+}
+
+function updateHUD() {
+  players.forEach((p,i)=>{
+    document.getElementById('hp'+i).style.width=(p.hp/p.maxHp*100)+'%';
+    document.getElementById('sc'+i).textContent=p.kills;
+  });
+  document.getElementById('total-score').textContent=players.reduce((s,p)=>s+p.kills,0);
+  document.getElementById('btn-buff').disabled=cmdCooldowns.buff>0;
+  document.getElementById('btn-nuke').disabled=cmdCooldowns.nuke>0;
+}
+
+function update() {
+  if(!gameRunning) return;
+  frame++;
+
+  // Spawn
+  if(waveActive){
+    waveTimer++;
+    for(let i=spawnQueue.length-1;i>=0;i--){
+      if(spawnQueue[i].delay<=waveTimer){
+        spawnEnemy(spawnQueue[i].quad);
+        spawnQueue.splice(i,1);
+      }
+    }
+    // Check wave end
+    const allDead = enemies.every(e=>e.length===0) && spawnQueue.length===0;
+    if(allDead){
+      waveActive=false;
+      wave++;
+      setTimeout(()=>{if(gameRunning)startWave()},2000);
+      showMsg('✨ WAVE '+wave+' クリア！');
+    }
+  }
+
+  // Player control
+  players.forEach((p,i)=>{
+    if(!p.alive) return;
+    // Auto-move towards nearest enemy
+    const ne = findNearest(p, i);
+    let tx=p.x, ty=p.y;
+    if(ne){
+      tx=ne.x; ty=ne.y;
+      // Move towards enemy
+      const ang=Math.atan2(ty-p.y,tx-p.x);
+      p.dx=Math.cos(ang)*p.spd;
+      p.dy=Math.sin(ang)*p.spd;
+    } else {
+      // Return to center
+      const ang=Math.atan2(qHeight/2-p.y,qWidth/2-p.x);
+      p.dx=Math.cos(ang)*p.spd*.5;
+      p.dy=Math.sin(ang)*p.spd*.5;
+    }
+
+    // If player is controlling this quad
+    if(selectedQuad===i){
+      const spd=p.spd*1.3;
+      p.dx=(keys['d']?1:0)-(keys['a']?1:0);
+      p.dy=(keys['s']?1:0)-(keys['w']?1:0);
+      const mag=Math.sqrt(p.dx**2+p.dy**2)||1;
+      p.dx=p.dx/mag*spd; p.dy=p.dy/mag*spd;
+    }
+
+    p.x+=p.dx; p.y+=p.dy;
+    p.x=Math.max(p.r,Math.min(qWidth-p.r,p.x));
+    p.y=Math.max(p.r,Math.min(qHeight-p.r,p.y));
+
+    // Auto-attack
+    if(p.fireCd<=0&&enemies[i].length>0){
+      const ne2=findNearest(p,i);
+      if(ne2){
+        const ang=Math.atan2(ne2.y-p.y,ne2.x-p.x);
+        if(p.weapon==='slash'){
+          // Melee slash - aoe around player
+          for(let j=enemies[i].length-1;j>=0;j--){
+            const e=enemies[i][j];
+            if(Math.hypot(e.x-p.x,e.y-p.y)<p.r+e.r+25){
+              e.hp-=p.atk;
+              if(e.hp<=0){killEnemy(i,j);j++;}
+            }
+          }
+          for(let k=0;k<8;k++) particles.push({x:p.x,y:p.y,dx:Math.cos(ang+k*.8)*4,dy:Math.sin(ang+k*.8)*4,life:10,color:p.color,quad:i});
+        } else if(p.weapon==='rapid'){
+          bullets.push({x:p.x,y:p.y,dx:Math.cos(ang)*9,dy:Math.sin(ang)*9,dmg:p.atk,color:'hsl(205,100%,80%)',quad:i});
+        } else if(p.weapon==='shield'){
+          bullets.push({x:p.x,y:p.y,dx:Math.cos(ang)*5,dy:Math.sin(ang)*5,dmg:p.atk,color:'hsl(280,100%,80%)',quad:i,r:6});
+          // Passive shield
+          if(frame%90===0) p.shieldHp=p.shieldMax;
+        } else if(p.weapon==='spread'){
+          for(let s=-.3;s<=.3;s+=.3){
+            bullets.push({x:p.x,y:p.y,dx:Math.cos(ang+s)*7,dy:Math.sin(ang+s)*7,dmg:p.atk,color:'hsl(45,100%,80%)',quad:i});
+          }
+        }
+        p.fireCd=p.fireRate;
+      }
+    }
+    if(p.fireCd>0) p.fireCd--;
+  });
+
+  // Bullets
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];
+    b.x+=b.dx;b.y+=b.dy;
+    if(b.x<-20||b.x>qWidth+20||b.y<-20||b.y>qHeight+20){bullets.splice(i,1);continue}
+    // Hit enemies in same quad
+    const eq=enemies[b.quad];
+    for(let j=eq.length-1;j>=0;j--){
+      const e=eq[j];
+      if(Math.hypot(e.x-b.x,e.y-b.y)<(b.r||3)+e.r){
+        e.hp-=b.dmg;
+        bullets.splice(i,1);
+        for(let p=0;p<3;p++) particles.push({x:e.x,y:e.y,dx:(Math.random()-.5)*3,dy:(Math.random()-.5)*3,life:10,color:e.color,quad:b.quad});
+        if(e.hp<=0) killEnemy(b.quad,j);
+        break;
+      }
+    }
+  }
+
+  // Enemies move towards player
+  enemies.forEach((eq,qi)=>{
+    const p=players[qi];
+    for(const e of eq){
+      const tx=p.alive?p.x:qWidth/2, ty=p.alive?p.y:qHeight/2;
+      const ang=Math.atan2(ty-e.y,tx-e.x);
+      e.x+=Math.cos(ang)*e.spd; e.y+=Math.sin(ang)*e.spd;
+    }
+  });
+
+  // Enemies vs player
+  enemies.forEach((eq,qi)=>{
+    const p=players[qi];
+    if(!p.alive) return;
+    for(let i=eq.length-1;i>=0;i--){
+      const e=eq[i];
+      const dist=Math.hypot(e.x-p.x,e.y-p.y);
+      if(dist<e.r+p.r){
+        // Shield absorbs first
+        const dmg=10;
+        if(p.shieldHp>0){p.shieldHp-=dmg;if(p.shieldHp<0){p.hp+=p.shieldHp;p.shieldHp=0}}
+        else p.hp-=dmg;
+        for(let k=0;k<6;k++) particles.push({x:p.x,y:p.y,dx:(Math.random()-.5)*4,dy:(Math.random()-.5)*4,life:12,color:'#ff4444',quad:qi});
+        // Knock enemy back
+        const ang=Math.atan2(e.y-p.y,e.x-p.x);
+        e.x+=Math.cos(ang)*40; e.y+=Math.sin(ang)*40;
+        if(p.hp<=0){p.alive=false;p.hp=0;showMsg(p.emoji+' ダウン！')}
+      }
+    }
+  });
+
+  // Check all dead
+  if(players.every(p=>!p.alive)){
+    gameRunning=false;
+    gameOver(false);
+  }
+
+  // Particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];p.x+=p.dx;p.y+=p.dy;p.life--;
+    if(p.life<=0)particles.splice(i,1);
+  }
+
+  // Cooldowns
+  if(cmdCooldowns.buff>0)cmdCooldowns.buff--;
+  if(cmdCooldowns.nuke>0)cmdCooldowns.nuke--;
+  for(const k of['a','b','c']) if(cmdCooldowns.heal[k]>0)cmdCooldowns.heal[k]--;
+
+  updateHUD();
+}
+
+function findNearest(p, qi) {
+  let best=null,bestD=Infinity;
+  for(const e of enemies[qi]){
+    const d=Math.hypot(e.x-p.x,e.y-p.y);
+    if(d<bestD){bestD=d;best=e}
+  }
+  return best;
+}
+
+function killEnemy(qi, idx) {
+  const e=enemies[qi][idx];
+  players[qi].kills+=e.score;
+  for(let i=0;i<8;i++) particles.push({x:e.x,y:e.y,dx:(Math.random()-.5)*5,dy:(Math.random()-.5)*5,life:15,color:e.color,quad:qi});
+  // Drop HP
+  if(Math.random()<.15) players[qi].hp=Math.min(players[qi].maxHp,players[qi].hp+15);
+  enemies[qi].splice(idx,1);
+}
+
+function gameOver(won) {
+  const ov=document.getElementById('over-overlay');
+  ov.classList.add('active');
+  document.getElementById('over-title').textContent=won?'🎉 勝利！':'💀 全滅...';
+  document.getElementById('over-wave').textContent='WAVE '+wave;
+  const total=players.reduce((s,p)=>s+p.kills,0);
+  document.getElementById('over-stats').innerHTML=players.map(p=>`<span style="color:${p.color}">${p.emoji}: ${p.kills}pts</span>`).join(' | ')+`<br>合計: ${total}pts`;
 }
 
 function draw() {
-    ctx.clearRect(0, 0, W, H);
-    
-    // 星空背景
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    const seed = 42;
-    for (let i=0; i<80; i++) {
-        const sx = ((i*137+seed)%W), sy = ((i*251+seed*3+(frameCount*(i%3+1)*0.05))%H);
-        ctx.fillRect(sx, sy, ((i%3)+1)*0.8, ((i%3)+1)*0.8);
+  players.forEach((p,i)=>{
+    const q=quads[i], ctx=q.ctx;
+    if(!ctx) return;
+    ctx.clearRect(0,0,qWidth,qHeight);
+
+    // Grid background
+    ctx.strokeStyle='rgba(255,255,255,.03)';
+    ctx.lineWidth=.5;
+    for(let gx=0;gx<qWidth;gx+=30)ctx.strokeRect(gx,0,0,qHeight);
+    for(let gy=0;gy<qHeight;gy+=30)ctx.strokeRect(0,gy,qWidth,0);
+
+    // Enemies
+    for(const e of enemies[i]){
+      ctx.save();
+      ctx.fillStyle=e.color;ctx.shadowColor=e.color;ctx.shadowBlur=8;
+      ctx.beginPath();
+      if(e.type==='tank'){ctx.moveTo(e.x,e.y-e.r);ctx.lineTo(e.x+e.r,e.y+e.r*.6);ctx.lineTo(e.x-e.r,e.y+e.r*.6);ctx.closePath()}
+      else if(e.type==='fast'){ctx.arc(e.x,e.y,e.r,0,Math.PI*2)}
+      else if(e.type==='caster'){for(let s=0;s<6;s++){const a=Math.PI*2*s/6;const r2=s%2===0?e.r:e.r*.5;s===0?ctx.moveTo(e.x+Math.cos(a)*r2,e.y+Math.sin(a)*r2):ctx.lineTo(e.x+Math.cos(a)*r2,e.y+Math.sin(a)*r2)}ctx.closePath()}
+      else{ctx.arc(e.x,e.y,e.r,0,Math.PI*2)}
+      ctx.fill();
+      // HP bar for tanks
+      if(e.maxHp>3){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(e.x-e.r,e.y-e.r-8,e.r*2,3);ctx.fillStyle='#0f0';ctx.fillRect(e.x-e.r,e.y-e.r-8,e.r*2*(e.hp/e.maxHp),3)}
+      ctx.restore();
     }
-    
-    // コックピット
-    ctx.save();
-    // グロー
-    const cGrad = ctx.createRadialGradient(cockpit.x, cockpit.y, cockpit.r*0.5, cockpit.x, cockpit.y, cockpit.r*2.5);
-    cGrad.addColorStop(0, 'rgba(255,215,0,0.3)');
-    cGrad.addColorStop(0.5, 'rgba(255,150,0,0.1)');
-    cGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = cGrad;
-    ctx.beginPath(); ctx.arc(cockpit.x, cockpit.y, cockpit.r*2.5, 0, Math.PI*2); ctx.fill();
-    
-    ctx.fillStyle = 'rgba(255,215,0,0.25)';
-    ctx.beginPath(); ctx.arc(cockpit.x, cockpit.y, cockpit.r, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,215,0,0.6)';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(cockpit.x, cockpit.y, cockpit.r, 0, Math.PI*2); ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.font = '16px Outfit';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚙️', cockpit.x, cockpit.y+6);
-    // HPバー
-    const chpW = cockpit.r*2;
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(cockpit.x-chpW/2, cockpit.y-cockpit.r-12, chpW, 4);
-    ctx.fillStyle = cockpit.hp/maxHp > 0.5 ? '#ffd700' : '#ff4444';
-    ctx.fillRect(cockpit.x-chpW/2, cockpit.y-cockpit.r-12, chpW*(cockpit.hp/cockpit.maxHp), 4);
-    ctx.restore();
-    
-    // 敵
-    for (const e of enemies) {
-        ctx.save();
-        ctx.fillStyle = e.color;
-        ctx.shadowColor = e.color;
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        if (e.type === 'tank') {
-            ctx.moveTo(e.x, e.y-e.r);
-            ctx.lineTo(e.x+e.r, e.y+e.r*0.5);
-            ctx.lineTo(e.x, e.y+e.r*0.3);
-            ctx.lineTo(e.x-e.r, e.y+e.r*0.5);
-        } else {
-            ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
-        }
-        ctx.fill();
-        if (e.maxHp > 1) {
-            ctx.fillStyle = '#fff';
-            ctx.font = '8px Outfit';
-            ctx.textAlign = 'center';
-            ctx.fillText('●'.repeat(e.hp), e.x, e.y-2);
-        }
-        ctx.restore();
+
+    // Player
+    if(p.alive){
+      ctx.save();
+      // Shield
+      if(p.shieldHp>0){
+        ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(p.x,p.y,p.r+6,0,Math.PI*2);ctx.stroke();
+      }
+      // Glow
+      ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=14;
+      ctx.beginPath();
+      if(p.weapon==='slash'){ctx.moveTo(p.x,p.y-p.r);ctx.lineTo(p.x-p.r*.8,p.y+p.r*.7);ctx.lineTo(p.x+p.r*.8,p.y+p.r*.7);ctx.closePath()}
+      else if(p.weapon==='rapid'){ctx.moveTo(p.x,p.y-p.r);ctx.lineTo(p.x+p.r*.7,p.y);ctx.lineTo(p.x,p.y+p.r);ctx.lineTo(p.x-p.r*.7,p.y);ctx.closePath()}
+      else if(p.weapon==='shield'){for(let s=0;s<6;s++){const a=Math.PI*2*s/6-Math.PI/2;s===0?ctx.moveTo(p.x+Math.cos(a)*p.r,p.y+Math.sin(a)*p.r):ctx.lineTo(p.x+Math.cos(a)*p.r,p.y+Math.sin(a)*p.r)}ctx.closePath()}
+      else{for(let s=0;s<10;s++){const a=Math.PI*2*s/10-Math.PI/2;const r2=s%2===0?p.r:p.r*.5;s===0?ctx.moveTo(p.x+Math.cos(a)*r2,p.y+Math.sin(a)*r2):ctx.lineTo(p.x+Math.cos(a)*r2,p.y+Math.sin(a)*r2)}ctx.closePath()}
+      ctx.fill();
+      ctx.restore();
+    } else {
+      // Dead icon
+      ctx.fillStyle='rgba(255,0,0,.3)';ctx.font='20px Outfit';
+      ctx.textAlign='center';ctx.fillText('💀',qWidth/2,qHeight/2);
     }
-    
-    // プレイヤー
-    for (const k of Object.keys(players)) {
-        const p = players[k];
-        if (!p.alive) continue;
-        ctx.save();
-        // シールド
-        if ((shieldActive[k] || buffActive) && k !== 'cmd') {
-            ctx.strokeStyle = p.color;
-            ctx.shadowColor = p.color;
-            ctx.shadowBlur = 15;
-            ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.r+8, 0, Math.PI*2); ctx.stroke();
-        }
-        if (buffActive) {
-            ctx.strokeStyle = 'rgba(255,215,0,0.5)';
-            ctx.shadowColor = players.cmd.color;
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.r+14, 0, Math.PI*2); ctx.stroke();
-        }
-        // 本体
-        ctx.fillStyle = p.color;
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        if (k==='a') {
-            // 三角形（攻撃型）
-            ctx.moveTo(p.x, p.y-p.r);
-            ctx.lineTo(p.x-p.r*0.8, p.y+p.r*0.6);
-            ctx.lineTo(p.x+p.r*0.8, p.y+p.r*0.6);
-        } else if (k==='b') {
-            // ダイヤ（高速型）
-            ctx.moveTo(p.x, p.y-p.r);
-            ctx.lineTo(p.x+p.r*0.7, p.y);
-            ctx.lineTo(p.x, p.y+p.r);
-            ctx.lineTo(p.x-p.r*0.7, p.y);
-        } else if (k==='c') {
-            // 六角形（防御型）
-            for (let i=0;i<6;i++) {
-                const ang = Math.PI*2*i/6 - Math.PI/2;
-                const sx = p.x+Math.cos(ang)*p.r, sy = p.y+Math.sin(ang)*p.r;
-                i===0 ? ctx.moveTo(sx,sy) : ctx.lineTo(sx,sy);
-            }
-        } else {
-            // 星型（コマンダー）
-            for (let i=0;i<10;i++) {
-                const ang = Math.PI*2*i/10 - Math.PI/2;
-                const r = i%2===0 ? p.r : p.r*0.5;
-                const sx = p.x+Math.cos(ang)*r, sy = p.y+Math.sin(ang)*r;
-                i===0 ? ctx.moveTo(sx,sy) : ctx.lineTo(sx,sy);
-            }
-        }
-        ctx.closePath(); ctx.fill();
-        // HPバー
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(p.x-p.r, p.y-p.r-10, p.r*2, 3);
-        const hpRatio = p.hp/p.maxHp;
-        ctx.fillStyle = hpRatio > 0.5 ? p.color : '#ff4444';
-        ctx.fillRect(p.x-p.r, p.y-p.r-10, p.r*2*hpRatio, 3);
-        ctx.restore();
+
+    // Bullets
+    for(const b of bullets){
+      if(b.quad!==i) continue;
+      ctx.fillStyle=b.color;ctx.shadowColor=b.color;ctx.shadowBlur=6;
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r||3,0,Math.PI*2);ctx.fill();
     }
-    
-    // 弾
-    for (const b of bullets) {
-        ctx.fillStyle = b.color;
-        ctx.shadowColor = b.color;
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.r||3, 0, Math.PI*2);
-        ctx.fill();
+
+    // Particles
+    for(const p of particles){
+      if(p.quad!==i) continue;
+      ctx.fillStyle=p.color;ctx.globalAlpha=p.life/25;
+      ctx.beginPath();ctx.arc(p.x,p.y,2.5,0,Math.PI*2);ctx.fill();
     }
-    
-    // パーティクル
-    for (const p of particles) {
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.life / 30;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
-        ctx.fill();
+    ctx.globalAlpha=1;
+
+    // Selected highlight
+    if(selectedQuad===i&&gameRunning){
+      ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=2;
+      ctx.setLineDash([4,4]);ctx.strokeRect(2,2,qWidth-4,qHeight-4);ctx.setLineDash([]);
     }
-    ctx.globalAlpha = 1;
-    
-    // バフインジケーター
-    if (buffActive) {
-        ctx.fillStyle = 'rgba(255,215,0,0.15)';
-        ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(255,215,0,0.8)';
-        ctx.font = 'bold 14px Orbitron';
-        ctx.textAlign = 'center';
-        ctx.fillText('⚡ COMMANDER BUFF ACTIVE ⚡', W/2, H*0.15);
-    }
+  });
 }
 
 function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
+  update();
+  draw();
+  if(gameRunning||document.getElementById('over-overlay').classList.contains('active')) requestAnimationFrame(gameLoop);
 }
 
-// 開始
-setTimeout(spawnWave, 1000);
-gameLoop();
+// Init canvases on load
+window.addEventListener('load',()=>{
+  quads.forEach(q=>initQuad(q));
+});
+window.addEventListener('resize',()=>{
+  quads.forEach(q=>initQuad(q));
+});
+
+// Start with overlay
+document.getElementById('start-overlay').classList.add('active');
 </script>
 </body>
 </html>
