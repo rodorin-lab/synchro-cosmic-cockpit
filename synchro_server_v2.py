@@ -217,6 +217,32 @@ class SynchroV2Handler(http.server.BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"status": "error", "message": str(e)}, 500)
 
+        elif path == "/api/system/status":
+            try:
+                meminfo = {}
+                with open("/proc/meminfo", "r") as f:
+                    for line in f:
+                        if line.startswith("MemTotal:") or line.startswith("MemAvailable:") or line.startswith("SwapTotal:") or line.startswith("SwapFree:"):
+                            parts = line.split()
+                            meminfo[parts[0].rstrip(":")] = int(parts[1]) * 1024
+                with open("/proc/loadavg", "r") as f:
+                    loadavg = f.read().strip().split()
+                df_result = subprocess.run(["df", "-B1", "/"], capture_output=True, text=True, timeout=5)
+                disk_lines = df_result.stdout.strip().split("\n")
+                disk_info = {}
+                if len(disk_lines) >= 2:
+                    parts = disk_lines[1].split()
+                    disk_info = {"total": int(parts[1]), "used": int(parts[2]), "free": int(parts[3])}
+                self.send_json({
+                    "status": "success",
+                    "loadavg": loadavg[:3],
+                    "memory": {"total": meminfo.get("MemTotal", 0), "available": meminfo.get("MemAvailable", 0)},
+                    "swap": {"total": meminfo.get("SwapTotal", 0), "free": meminfo.get("SwapFree", 0)},
+                    "disk": disk_info
+                })
+            except Exception as e:
+                self.send_json({"status": "error", "message": str(e)}, 500)
+
         elif path == "/" or path == "/index.html":
             filepath = os.path.join(WORK_DIR, "synchro_cockpit_v2.html")
             if os.path.exists(filepath):
@@ -358,6 +384,63 @@ class SynchroV2Handler(http.server.BaseHTTPRequestHandler):
                 })
             else:
                 self.send_json({"status": "error", "message": f"{filename} not found"}, 404)
+
+        elif path == "/api/fs/list":
+            target_path = data.get("path", ".")
+            try:
+                full_path = os.path.join(WORK_DIR, target_path)
+                real_full = os.path.realpath(full_path)
+                real_work = os.path.realpath(WORK_DIR)
+                if not real_full.startswith(real_work):
+                    self.send_json({"status": "error", "message": "Access denied"}, 403)
+                    return
+                entries = []
+                for entry in os.listdir(full_path):
+                    entry_path = os.path.join(full_path, entry)
+                    entries.append({
+                        "name": entry,
+                        "type": "directory" if os.path.isdir(entry_path) else "file",
+                        "size": os.path.getsize(entry_path) if os.path.isfile(entry_path) else None
+                    })
+                self.send_json({"status": "success", "path": target_path, "entries": entries})
+            except Exception as e:
+                self.send_json({"status": "error", "message": str(e)}, 500)
+
+        elif path == "/api/fs/read":
+            target_path = data.get("path", "")
+            if not target_path:
+                self.send_json({"status": "error", "message": "path is required"}, 400)
+                return
+            try:
+                full_path = os.path.join(WORK_DIR, target_path)
+                real_full = os.path.realpath(full_path)
+                real_work = os.path.realpath(WORK_DIR)
+                if not real_full.startswith(real_work):
+                    self.send_json({"status": "error", "message": "Access denied"}, 403)
+                    return
+                with open(full_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.send_json({"status": "success", "path": target_path, "content": content})
+            except Exception as e:
+                self.send_json({"status": "error", "message": str(e)}, 500)
+
+        elif path == "/api/exec":
+            command = data.get("command", "")
+            if not command:
+                self.send_json({"status": "error", "message": "command is required"}, 400)
+                return
+            try:
+                result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30, cwd=WORK_DIR)
+                self.send_json({
+                    "status": "success",
+                    "command": command,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode
+                })
+                post_agent_message("グラムちゃん（実行）", f"⚡「{command[:40]}」を実行したよ！🛸✨")
+            except Exception as e:
+                self.send_json({"status": "error", "message": str(e)}, 500)
 
         elif path == "/api/reset":
             conn = sqlite3.connect(DB_PATH)
