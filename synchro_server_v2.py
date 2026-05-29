@@ -107,6 +107,33 @@ def notify_real_synchros(agent, message):
         t = threading.Thread(target=func, daemon=True)
         t.start()
 
+def search_web(query, max_results=5):
+    """🛸 グラムちゃんのネット検索手足！DuckDuckGoで検索して結果を返すよ！"""
+    try:
+        encoded = urllib.parse.quote_plus(query)
+        url = f"https://duckduckgo.com/html/?q={encoded}"
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'}
+        )
+        with urllib.request.urlopen(req, timeout=15) as response:
+            html = response.read().decode('utf-8')
+            results = []
+            links = re.findall(r'<a class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>', html)
+            snippets = re.findall(r'<a class="result__snippet"[^>]*>(.*?)</a>', html)
+            for i, (href, title_raw) in enumerate(links[:max_results]):
+                title = re.sub(r'<[^>]+>', '', title_raw)
+                snippet = re.sub(r'<[^>]+>', '', snippets[i]) if i < len(snippets) else ""
+                results.append({
+                    "title": title,
+                    "url": urllib.parse.unquote(href),
+                    "snippet": snippet
+                })
+            return results
+    except Exception as e:
+        print(f"❌ [search_web] エラー: {e}", file=sys.stderr)
+        return []
+
 _last_message_cache = {}
 _last_message_time = {}
 
@@ -163,6 +190,19 @@ class SynchroV2Handler(http.server.BaseHTTPRequestHandler):
             rows = cursor.fetchall()
             conn.close()
             self.send_json([dict(r) for r in rows])
+
+        elif path == "/api/search":
+            query_params = urllib.parse.parse_qs(parsed.query)
+            query = query_params.get("q", [""])[0]
+            if not query:
+                self.send_json({"status": "error", "message": "query parameter 'q' is required"}, 400)
+                return
+            results = search_web(query)
+            self.send_json({
+                "status": "success",
+                "query": query,
+                "results": results
+            })
 
         elif path == "/api/git/status":
             try:
@@ -268,6 +308,19 @@ class SynchroV2Handler(http.server.BaseHTTPRequestHandler):
                 return
             save_and_write_code(filename, code, agent)
             self.send_json({"status": "success"})
+
+        elif path == "/api/search":
+            query = data.get("query", "")
+            if not query:
+                self.send_json({"status": "error", "message": "query is required"}, 400)
+                return
+            results = search_web(query)
+            post_agent_message("グラムちゃん（検索）", f"🔍「{query}」の検索結果を {len(results)} 件見つけたよ！🛸✨")
+            self.send_json({
+                "status": "success",
+                "query": query,
+                "results": results
+            })
 
         elif path == "/api/git/commit":
             message = data.get("message", "🛸 Synchro Cockpit auto-commit")
