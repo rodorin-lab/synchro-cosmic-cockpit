@@ -40,7 +40,7 @@ class FileTreePanel(Vertical):
         self.styles.width = "25%"
         self.styles.height = "100%"
         self.styles.background = "#0a0a1a"
-        self.styles.border = ("single", "#ff007f")
+        self.styles.border = ("solid", "#ff007f")
         self.styles.padding = 1
         tree = self.query_one("#file-tree", Tree)
         tree.styles.color = "#00f0ff"
@@ -85,7 +85,7 @@ class ChatPanel(Vertical):
         self.styles.width = "50%"
         self.styles.height = "100%"
         self.styles.background = "#050510"
-        self.styles.border = ("single", "#00f0ff")
+        self.styles.border = ("solid", "#00f0ff")
         self.styles.padding = 1
         log = self.query_one("#chat-log", Log)
         log.styles.color = "#ffffff"
@@ -148,7 +148,7 @@ class SystemPanel(Vertical):
         self.styles.width = "25%"
         self.styles.height = "100%"
         self.styles.background = "#0a0a1a"
-        self.styles.border = ("single", "#ffd700")
+        self.styles.border = ("solid", "#ffd700")
         self.styles.padding = 1
         self.set_interval(3, self.update_status)
 
