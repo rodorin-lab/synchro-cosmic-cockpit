@@ -213,6 +213,7 @@ class GramTUI(App):
         Binding("q", "quit", "🚪 終了", show=True),
         Binding("r", "refresh", "🔄 更新", show=True),
         Binding("f5", "refresh", "🔄 更新", show=True),
+        Binding("d", "design_doc", "📋 設計書", show=True),
     ]
 
     def compose(self) -> ComposeResult:
@@ -226,6 +227,20 @@ class GramTUI(App):
     def action_refresh(self) -> None:
         self.query_one(FileTreePanel).load_files()
         self.query_one(SystemPanel).update_status()
+
+    def action_design_doc(self) -> None:
+        chat = self.query_one(ChatPanel)
+        try:
+            req = urllib.request.Request(f"{API_BASE}/api/design", method="GET")
+            with urllib.request.urlopen(req, timeout=5) as res:
+                data = json.loads(res.read())
+                if data.get("status") == "success":
+                    content = data.get("content", "")
+                    chat.add_message("📋 ゲーム設計書", "【IRON FRAME 設計書を取得しました】\n" + content[:2000])
+                else:
+                    chat.add_message("⚠️ システム", "設計書の取得に失敗しました")
+        except Exception as e:
+            chat.add_message("⚠️ システム", f"設計書取得エラー: {e}")
 
 
 if __name__ == "__main__":

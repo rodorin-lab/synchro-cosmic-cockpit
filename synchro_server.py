@@ -765,6 +765,21 @@ class SynchroApiHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Cockpit File Not Found")
 
+        elif path == "/api/design":
+            filepath = os.path.join("/home/rodorin", "medarot2/uodate")
+            if os.path.exists(filepath):
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                with open(filepath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.wfile.write(json.dumps({"status": "success", "content": content}).encode('utf-8'))
+            else:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "not_found"}).encode('utf-8'))
+
         elif path.startswith("/game/"):
             filename = path.replace("/game/", "")
             filepath = os.path.join("/home/rodorin", filename)
