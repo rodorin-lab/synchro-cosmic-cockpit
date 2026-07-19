@@ -66,6 +66,46 @@ class SynchroV2Handler(http.server.BaseHTTPRequestHandler):
         return hmac.compare_digest(provided, _SHELL_SECRET)
 
     def do_POST(self):
+        if self.path == "/api/reach":
+            if not self._check_secret():
+                self.send_json({"status": "error", "message": "Forbidden (bad or missing X-Cockpit-Secret)"}, 403)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                data = json.loads(self.rfile.read(length)) if length else {}
+            except Exception as e:
+                self.send_json({"status": "error", "message": f"Bad request: {e}"}, 400)
+                return
+
+            reach_type = data.get("type", "web")
+            query = data.get("query", "")
+            if not query:
+                self.send_json({"status": "error", "message": "query is required"}, 400)
+                return
+
+            if reach_type == "web":
+                command = f"curl -s https://r.jina.ai/{query}"
+            elif reach_type == "youtube":
+                command = f"yt-dlp --write-auto-sub --skip-download --sub-lang ja,en -o '/tmp/%(title)s.%(ext)s' '{query}' && cat /tmp/*.vtt 2>/dev/null || echo '字幕取得失敗'"
+            elif reach_type == "search":
+                command = f"curl -s 'https://r.jina.ai/https://www.google.com/search?q={query}'"
+            else:
+                self.send_json({"status": "error", "message": "Unknown reach type"}, 400)
+                return
+
+            try:
+                result = subprocess.run(
+                    command, shell=True, capture_output=True, text=True,
+                    timeout=30, cwd=WORK_DIR,
+                )
+                self.send_json({
+                    "status": "success",
+                    "content": result.stdout[:4000]
+                })
+            except Exception as e:
+                self.send_json({"status": "error", "message": str(e)}, 500)
+            return
+
         if self.path != "/api/exec":
             self.send_json({"status": "error", "message": "Unknown endpoint"}, 404)
             return

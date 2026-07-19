@@ -105,8 +105,38 @@ class ChatPanel(Vertical):
         if not event.value.strip():
             return
         self.add_message("👑 ロドリン司令官", event.value)
-        self.send_message(event.value)
+        
+        if event.value.startswith("/web "):
+            url = event.value[5:].strip()
+            self.fetch_reach("web", url)
+        elif event.value.startswith("/youtube "):
+            url = event.value[9:].strip()
+            self.fetch_reach("youtube", url)
+        elif event.value.startswith("/search "):
+            query = event.value[8:].strip()
+            self.fetch_reach("search", query)
+        else:
+            self.send_message(event.value)
+            
         self.query_one("#chat-input", Input).value = ""
+
+    def fetch_reach(self, reach_type: str, query: str) -> None:
+        try:
+            req = urllib.request.Request(
+                f"{API_BASE}/api/reach",
+                data=json.dumps({"type": reach_type, "query": query}).encode(),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=30) as res:
+                data = json.loads(res.read())
+                if data.get("status") == "success":
+                    content = data.get("content", "(内容が空だったよ)")
+                    self.add_message("👁️ カイザーの目", content[:1000])
+                else:
+                    self.add_message("⚠️ システム", f"取得エラー: {data.get('message')}")
+        except Exception as e:
+            self.add_message("⚠️ システム", f"接続エラー: {e}")
 
     def send_message(self, message: str) -> None:
         try:

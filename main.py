@@ -83,6 +83,16 @@ class GramBridge(QObject):
         ネットワーク往復は GUI スレッドをブロックしないようワーカーで実行。"""
         def worker():
             try:
+                if message.startswith("/web "):
+                    self._fetch_reach("web", message[5:].strip())
+                    return
+                elif message.startswith("/youtube "):
+                    self._fetch_reach("youtube", message[9:].strip())
+                    return
+                elif message.startswith("/search "):
+                    self._fetch_reach("search", message[8:].strip())
+                    return
+
                 session_id = self._ensure_session()
                 req = urllib.request.Request(
                     f"{HERMES_API_BASE}/api/sessions/{session_id}/chat",
@@ -103,6 +113,25 @@ class GramBridge(QObject):
                     f"⚠️ ヘルメスに繋がらないみたい… ({e})",
                 )
         threading.Thread(target=worker, daemon=True).start()
+
+    # ── インターネットの目（Agent-Reach 経由） ─────────────────────
+    def _fetch_reach(self, reach_type, query):
+        try:
+            req = urllib.request.Request(
+                f"{SHELL_API_BASE}/api/reach",
+                data=json.dumps({"type": reach_type, "query": query}).encode(),
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Cockpit-Secret": self._shell_secret,
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as res:
+                data = json.loads(res.read())
+            content = data.get("content", "(内容が空だったよ)")
+            self.messageReceived.emit("👁️ カイザーの目", content[:1000])
+        except Exception as e:
+            self.messageReceived.emit("👁️ カイザーの目", f"⚠️ 取得に失敗したよ… ({e})")
 
     # ── シェル実行フォールバック（任意・9090 経由） ───────────────────
     @Slot(str)
