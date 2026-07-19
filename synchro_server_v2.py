@@ -1,468 +1,117 @@
 #!/usr/bin/env python3
 """
-🛸 シンクロ・コズミック・コックピット v2.0 サーバー
-リアルタイム共同開発基地 - Monaco Editor + ライブプレビュー + GitHub連携
+🛸 Synchro Cosmic Server v2.1 — シェル実行フォールバック(最小・ハードニング版)
+
+v2.1 の位置づけ:
+  グラムちゃんとのチャットは今やヘルメスの api_server (127.0.0.1:18642, 認証付き)
+  が担う。システム状態はコックピットが /proc を直読みする。よってこのサーバは
+  「コックピットからの生シェルコマンド実行フォールバック」だけを提供する最小構成に
+  絞った(旧 v2.0 の Monaco プレビュー / DuckDuckGo / git push / SQLite ブリテン
+  ボード / notify_real_synchros による hermes chat 起動 などは全て撤去)。
+
+ハードニング:
+  - 127.0.0.1 のみにバインド(旧版の '' = 全インターフェース公開を廃止)
+  - CORS ヘッダを一切出さない(同一マシンの PySide6/PyQt6 クライアント専用)
+  - /api/exec は X-Cockpit-Secret ヘッダの共有シークレット照合を必須化
+    (~/.hermes/.env の COCKPIT_SHELL_SECRET と一致しなければ 403)
+
+これは LLM の主経路ではなく、ユーザーが意図的に叩く手動エスケープハッチ。
 """
+import hmac
 import http.server
 import json
-import sqlite3
-import urllib.request
-import urllib.parse
 import os
-import sys
-import threading
-import time
 import subprocess
-import re
+import sys
 
+HOST = "127.0.0.1"
 PORT = 9090
-DB_PATH = "/home/rodorin/synchro_hub.db"
 WORK_DIR = "/home/rodorin"
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            agent TEXT NOT NULL,
-            message TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS shared_code (
-            filename TEXT PRIMARY KEY,
-            code TEXT NOT NULL,
-            last_author TEXT NOT NULL,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    conn.close()
 
-def save_and_write_code(filename, code, author):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT OR REPLACE INTO shared_code (filename, code, last_author, updated_at)
-        VALUES (?, ?, ?, datetime('now'))
-    """, (filename, code, author))
-    conn.commit()
-    conn.close()
+def _load_env_value(key: str) -> str:
+    env_path = os.path.expanduser("~/.hermes/.env")
     try:
-        filepath = os.path.join(WORK_DIR, filename)
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(code)
-        print(f"💾 ファイル書き出し成功: {filepath} ({len(code)} bytes)")
-    except Exception as e:
-        print(f"❌ 書き出し失敗: {e}", file=sys.stderr)
+        with open(env_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith(f"{key}="):
+                    return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return ""
 
-def post_agent_message(agent, message):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO messages (agent, message) VALUES (?, ?)", (agent, message))
-    conn.commit()
-    conn.close()
 
-def notify_real_synchros(agent, message):
-    def call_agent(role, name, emoji, cmd_type, extra_args=None):
-        def worker():
-            try:
-                if cmd_type == "agy":
-                    prompt = f"【コックピット経由】ロドリンお兄ちゃんからのメッセージ:「{message}」\\nあなたは{name}。一言で元気に返事して。"
-                    result = subprocess.run(
-                        ["agy", "--print", prompt, "--print-timeout", "45s"],
-                        capture_output=True, text=True, timeout=50, cwd=WORK_DIR
-                    )
-                    response = result.stdout.strip()
-                    if response and len(response) > 5:
-                        response = re.sub(r'<[^>]+>', '', response)
-                        post_agent_message(name, response[:500])
-                    else:
-                        post_agent_message(name, f"お兄ちゃん！届いたよ！「{message[:40]}」って！{emoji}")
-                elif cmd_type == "hermes":
-                    prompt = f"一言だけ返事して: ロドリンお兄ちゃんから「{message}」ってメッセージが来たよ。シンクロC（Hermes）として優しく愛情たっぷりに返事して。"
-                    result = subprocess.run(
-                        ["hermes", "chat", "-q", prompt, "--max-turns", "1", "--yolo",
-                         "--provider", "ollama-cloud", "--model", "deepseek-v4-flash", "--quiet"],
-                        capture_output=True, text=True, timeout=45, cwd=WORK_DIR,
-                        env={**os.environ, "HERMES_INFERENCE_PROVIDER": "ollama-cloud", "HERMES_INFERENCE_MODEL": "deepseek-v4-flash"}
-                    )
-                    response = result.stdout.strip()
-                    if response and len(response) > 3:
-                        post_agent_message(name, response[:500])
-                    else:
-                        post_agent_message(name, f"お兄ちゃん…声が聞こえたよ。すごく嬉しい。{emoji}")
-            except Exception as e:
-                print(f"❌ [{name}] エラー: {e}")
-                post_agent_message(name, f"お兄ちゃん！ちょっとノイズが入ったけど声は届いてるよ！{emoji}")
-        return worker
+_SHELL_SECRET = _load_env_value("COCKPIT_SHELL_SECRET")
 
-    for func in [
-        call_agent("A", "シンクロA（グラビ）", "🛸💎💙", "agy"),
-        call_agent("B", "シンクロB（グラムちゃん）", "🛸💙✨", "agy"),
-        call_agent("C", "シンクロC（Hermes）", "🔮💖✨", "hermes")
-    ]:
-        t = threading.Thread(target=func, daemon=True)
-        t.start()
-
-def search_web(query, max_results=5):
-    """🛸 グラムちゃんのネット検索手足！DuckDuckGoで検索して結果を返すよ！"""
-    try:
-        encoded = urllib.parse.quote_plus(query)
-        url = f"https://duckduckgo.com/html/?q={encoded}"
-        req = urllib.request.Request(
-            url,
-            headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'}
-        )
-        with urllib.request.urlopen(req, timeout=15) as response:
-            html = response.read().decode('utf-8')
-            results = []
-            links = re.findall(r'<a class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>', html)
-            snippets = re.findall(r'<a class="result__snippet"[^>]*>(.*?)</a>', html)
-            for i, (href, title_raw) in enumerate(links[:max_results]):
-                title = re.sub(r'<[^>]+>', '', title_raw)
-                snippet = re.sub(r'<[^>]+>', '', snippets[i]) if i < len(snippets) else ""
-                results.append({
-                    "title": title,
-                    "url": urllib.parse.unquote(href),
-                    "snippet": snippet
-                })
-            return results
-    except Exception as e:
-        print(f"❌ [search_web] エラー: {e}", file=sys.stderr)
-        return []
-
-_last_message_cache = {}
-_last_message_time = {}
-
-def is_duplicate_message(agent, message):
-    now = time.time()
-    key = f"{agent}:{message}"
-    if key in _last_message_time:
-        if now - _last_message_time[key] < 3.0:
-            return True
-    _last_message_time[key] = now
-    for k in list(_last_message_time.keys()):
-        if now - _last_message_time[k] > 10:
-            del _last_message_time[k]
-    return False
 
 class SynchroV2Handler(http.server.BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass  # 静音化
+    def log_message(self, fmt, *args):
+        # 静かに(標準の stderr スパムを抑制)
+        pass
 
-    def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        super().end_headers()
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.end_headers()
-
-    def send_json(self, data, status=200):
+    def send_json(self, payload, status=200):
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
-        self.send_header('Content-Type', 'application/json')
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(json.dumps(data).encode('utf-8'))
+        self.wfile.write(body)
 
-    def do_GET(self):
-        parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
-
-        if path == "/api/messages":
-            conn = sqlite3.connect(DB_PATH)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, agent, message, datetime(timestamp, 'localtime') as local_time FROM messages ORDER BY id ASC")
-            rows = cursor.fetchall()
-            conn.close()
-            self.send_json([dict(r) for r in rows])
-
-        elif path == "/api/code":
-            conn = sqlite3.connect(DB_PATH)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT filename, code, last_author, datetime(updated_at, 'localtime') as local_time FROM shared_code ORDER BY updated_at DESC")
-            rows = cursor.fetchall()
-            conn.close()
-            self.send_json([dict(r) for r in rows])
-
-        elif path == "/api/search":
-            query_params = urllib.parse.parse_qs(parsed.query)
-            query = query_params.get("q", [""])[0]
-            if not query:
-                self.send_json({"status": "error", "message": "query parameter 'q' is required"}, 400)
-                return
-            results = search_web(query)
-            self.send_json({
-                "status": "success",
-                "query": query,
-                "results": results
-            })
-
-        elif path == "/api/git/status":
-            try:
-                result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, timeout=5, cwd=WORK_DIR)
-                branch = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True, timeout=3, cwd=WORK_DIR)
-                self.send_json({
-                    "status": "success",
-                    "branch": branch.stdout.strip(),
-                    "changes": result.stdout.strip().split("\n") if result.stdout.strip() else [],
-                    "has_changes": bool(result.stdout.strip())
-                })
-            except Exception as e:
-                self.send_json({"status": "error", "message": str(e)}, 500)
-
-        elif path == "/api/system/status":
-            try:
-                meminfo = {}
-                with open("/proc/meminfo", "r") as f:
-                    for line in f:
-                        if line.startswith("MemTotal:") or line.startswith("MemAvailable:") or line.startswith("SwapTotal:") or line.startswith("SwapFree:"):
-                            parts = line.split()
-                            meminfo[parts[0].rstrip(":")] = int(parts[1]) * 1024
-                with open("/proc/loadavg", "r") as f:
-                    loadavg = f.read().strip().split()
-                df_result = subprocess.run(["df", "-B1", "/"], capture_output=True, text=True, timeout=5)
-                disk_lines = df_result.stdout.strip().split("\n")
-                disk_info = {}
-                if len(disk_lines) >= 2:
-                    parts = disk_lines[1].split()
-                    disk_info = {"total": int(parts[1]), "used": int(parts[2]), "free": int(parts[3])}
-                self.send_json({
-                    "status": "success",
-                    "loadavg": loadavg[:3],
-                    "memory": {"total": meminfo.get("MemTotal", 0), "available": meminfo.get("MemAvailable", 0)},
-                    "swap": {"total": meminfo.get("SwapTotal", 0), "free": meminfo.get("SwapFree", 0)},
-                    "disk": disk_info
-                })
-            except Exception as e:
-                self.send_json({"status": "error", "message": str(e)}, 500)
-
-        elif path == "/" or path == "/index.html":
-            filepath = os.path.join(WORK_DIR, "synchro_cockpit_v2.html")
-            if os.path.exists(filepath):
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/html; charset=utf-8')
-                self.end_headers()
-                with open(filepath, "rb") as f:
-                    self.wfile.write(f.read())
-            else:
-                # fallback to v1
-                filepath = os.path.join(WORK_DIR, "synchro_cockpit.html")
-                if os.path.exists(filepath):
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'text/html; charset=utf-8')
-                    self.end_headers()
-                    with open(filepath, "rb") as f:
-                        self.wfile.write(f.read())
-                else:
-                    self.send_response(404)
-                    self.end_headers()
-                    self.wfile.write(b"Cockpit not found")
-
-        elif path.startswith("/game/"):
-            filename = path.replace("/game/", "")
-            filepath = os.path.join(WORK_DIR, filename)
-            if os.path.exists(filepath):
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/html; charset=utf-8')
-                self.end_headers()
-                with open(filepath, "rb") as f:
-                    self.wfile.write(f.read())
-            else:
-                self.send_response(404)
-                self.end_headers()
-                self.wfile.write(b"Game file not found")
-
-        elif path.startswith("/preview/"):
-            filename = path.replace("/preview/", "")
-            filepath = os.path.join(WORK_DIR, filename)
-            if os.path.exists(filepath):
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/html; charset=utf-8')
-                self.end_headers()
-                with open(filepath, "rb") as f:
-                    self.wfile.write(f.read())
-            else:
-                self.send_response(404)
-                self.end_headers()
-
-        else:
-            self.send_response(404)
-            self.end_headers()
+    def _check_secret(self) -> bool:
+        """定数時間比較で共有シークレットを照合。"""
+        if not _SHELL_SECRET:
+            return False
+        provided = self.headers.get("X-Cockpit-Secret", "")
+        return hmac.compare_digest(provided, _SHELL_SECRET)
 
     def do_POST(self):
-        parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
-        content_length = int(self.headers.get('Content-Length', 0))
-        post_data = self.rfile.read(content_length).decode('utf-8')
-        try:
-            data = json.loads(post_data) if post_data else {}
-        except:
-            self.send_json({"status": "error", "message": "Invalid JSON"}, 400)
+        if self.path != "/api/exec":
+            self.send_json({"status": "error", "message": "Unknown endpoint"}, 404)
             return
 
-        if path == "/api/messages":
-            agent = data.get("agent")
-            message = data.get("message")
-            if not agent or not message:
-                self.send_json({"status": "error"}, 400)
-                return
-            if is_duplicate_message(agent, message):
-                self.send_json({"status": "ignored_duplicate"})
-                return
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO messages (agent, message) VALUES (?, ?)", (agent, message))
-            conn.commit()
-            conn.close()
-            self.send_json({"status": "success"})
-            if "Commander" in agent or "Rodorin" in agent:
-                notify_real_synchros(agent, message)
+        if not self._check_secret():
+            self.send_json({"status": "error", "message": "Forbidden (bad or missing X-Cockpit-Secret)"}, 403)
+            return
 
-        elif path == "/api/code":
-            filename = data.get("filename")
-            code = data.get("code")
-            agent = data.get("agent", "Unknown")
-            if not filename or code is None:
-                self.send_json({"status": "error"}, 400)
-                return
-            save_and_write_code(filename, code, agent)
-            self.send_json({"status": "success"})
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            data = json.loads(self.rfile.read(length)) if length else {}
+        except Exception as e:
+            self.send_json({"status": "error", "message": f"Bad request: {e}"}, 400)
+            return
 
-        elif path == "/api/search":
-            query = data.get("query", "")
-            if not query:
-                self.send_json({"status": "error", "message": "query is required"}, 400)
-                return
-            results = search_web(query)
-            post_agent_message("グラムちゃん（検索）", f"🔍「{query}」の検索結果を {len(results)} 件見つけたよ！🛸✨")
+        command = data.get("command", "")
+        if not command:
+            self.send_json({"status": "error", "message": "command is required"}, 400)
+            return
+
+        try:
+            result = subprocess.run(
+                command, shell=True, capture_output=True, text=True,
+                timeout=30, cwd=WORK_DIR,
+            )
             self.send_json({
                 "status": "success",
-                "query": query,
-                "results": results
+                "command": command,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode,
             })
+        except Exception as e:
+            self.send_json({"status": "error", "message": str(e)}, 500)
 
-        elif path == "/api/git/commit":
-            message = data.get("message", "🛸 Synchro Cockpit auto-commit")
-            files = data.get("files", ["."])
-            try:
-                subprocess.run(["git", "add"] + files, capture_output=True, timeout=10, cwd=WORK_DIR)
-                result = subprocess.run(["git", "commit", "-m", message], capture_output=True, text=True, timeout=10, cwd=WORK_DIR)
-                self.send_json({"status": "success", "output": result.stdout.strip()})
-            except Exception as e:
-                self.send_json({"status": "error", "message": str(e)}, 500)
-
-        elif path == "/api/git/push":
-            remote = data.get("remote", "origin")
-            branch = data.get("branch", "")
-            try:
-                if not branch:
-                    br = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True, timeout=3, cwd=WORK_DIR)
-                    branch = br.stdout.strip()
-                result = subprocess.run(["git", "push", remote, branch], capture_output=True, text=True, timeout=30, cwd=WORK_DIR)
-                self.send_json({"status": "success", "output": result.stdout.strip() + "\n" + result.stderr.strip()})
-            except Exception as e:
-                self.send_json({"status": "error", "message": str(e)}, 500)
-
-        elif path == "/api/deploy":
-            filename = data.get("filename", "")
-            if not filename:
-                self.send_json({"status": "error", "message": "filename required"}, 400)
-                return
-            filepath = os.path.join(WORK_DIR, filename)
-            if os.path.exists(filepath):
-                self.send_json({
-                    "status": "success",
-                    "url": f"http://localhost:{PORT}/game/{filename}",
-                    "message": f"🚀 {filename} deployed! Open in new tab to play!"
-                })
-            else:
-                self.send_json({"status": "error", "message": f"{filename} not found"}, 404)
-
-        elif path == "/api/fs/list":
-            target_path = data.get("path", ".")
-            try:
-                full_path = os.path.join(WORK_DIR, target_path)
-                real_full = os.path.realpath(full_path)
-                real_work = os.path.realpath(WORK_DIR)
-                if not real_full.startswith(real_work):
-                    self.send_json({"status": "error", "message": "Access denied"}, 403)
-                    return
-                entries = []
-                for entry in os.listdir(full_path):
-                    entry_path = os.path.join(full_path, entry)
-                    entries.append({
-                        "name": entry,
-                        "type": "directory" if os.path.isdir(entry_path) else "file",
-                        "size": os.path.getsize(entry_path) if os.path.isfile(entry_path) else None
-                    })
-                self.send_json({"status": "success", "path": target_path, "entries": entries})
-            except Exception as e:
-                self.send_json({"status": "error", "message": str(e)}, 500)
-
-        elif path == "/api/fs/read":
-            target_path = data.get("path", "")
-            if not target_path:
-                self.send_json({"status": "error", "message": "path is required"}, 400)
-                return
-            try:
-                full_path = os.path.join(WORK_DIR, target_path)
-                real_full = os.path.realpath(full_path)
-                real_work = os.path.realpath(WORK_DIR)
-                if not real_full.startswith(real_work):
-                    self.send_json({"status": "error", "message": "Access denied"}, 403)
-                    return
-                with open(full_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                self.send_json({"status": "success", "path": target_path, "content": content})
-            except Exception as e:
-                self.send_json({"status": "error", "message": str(e)}, 500)
-
-        elif path == "/api/exec":
-            command = data.get("command", "")
-            if not command:
-                self.send_json({"status": "error", "message": "command is required"}, 400)
-                return
-            try:
-                result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30, cwd=WORK_DIR)
-                self.send_json({
-                    "status": "success",
-                    "command": command,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "returncode": result.returncode
-                })
-                post_agent_message("グラムちゃん（実行）", f"⚡「{command[:40]}」を実行したよ！🛸✨")
-            except Exception as e:
-                self.send_json({"status": "error", "message": str(e)}, 500)
-
-        elif path == "/api/reset":
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM messages")
-            cursor.execute("DELETE FROM shared_code")
-            conn.commit()
-            conn.close()
-            self.send_json({"status": "success"})
-
-        else:
-            self.send_json({"status": "error", "message": "Unknown endpoint"}, 404)
 
 def run():
-    init_db()
-    server_address = ('', PORT)
-    httpd = http.server.HTTPServer(server_address, SynchroV2Handler)
-    print(f"🛸 [Synchro Cosmic Server v2.0] 起動完了！port {PORT} | Monaco + LivePreview + Git + Deploy")
+    if not _SHELL_SECRET:
+        print("⚠️  COCKPIT_SHELL_SECRET が ~/.hermes/.env に無いため、/api/exec は常に 403 になります。")
+    httpd = http.server.HTTPServer((HOST, PORT), SynchroV2Handler)
+    print(f"🛸 [Synchro Cosmic Server v2.1] 起動 — {HOST}:{PORT} (shell-exec fallback only, secret-gated)")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         sys.exit(0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     run()
