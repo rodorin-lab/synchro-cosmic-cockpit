@@ -24,3 +24,13 @@ synchro_hub.db
 .env
 *.token
 auth-profiles.json
+.aider*
+
+# Old cockpit HTML files (archived elsewhere)
+/synchro_cockpit*.html
+/synchro_cosmic_flight.html
+/synchro_defender_alliance.html
+/synchro_server.py
+
+# ii (quickshell) local backup files
+.config/quickshell/ii/**/*.[bB][aA][kK]*
