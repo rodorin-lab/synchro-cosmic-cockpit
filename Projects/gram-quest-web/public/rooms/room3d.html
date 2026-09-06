@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI の部屋 — GALACTICA ROOMS 3D</title>
+<style>
+  body { margin:0; background:#05060d; overflow:hidden; font-family:monospace; }
+  #hud { position:fixed; top:12px; left:12px; color:#7df3ff; font-size:12px; z-index:10;
+         background:rgba(5,10,25,.82); border:1px solid #1e4a6e; padding:10px 14px; border-radius:8px; max-width:320px; }
+  #hud h1 { margin:0 0 6px; font-size:14px; color:#f472b6; }
+  #hud .dim { color:#5a7a9a; font-size:11px; }
+  #talk { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:10;
+          display:flex; gap:8px; width:min(560px, 92vw); }
+  #talk input { flex:1; background:#0a0f22cc; color:#c8e8ff; border:1px solid #1e4a6e;
+                padding:10px 14px; border-radius:8px; font-family:inherit; font-size:13px; }
+  #talk button { background:#1a1030; color:#f472b6; border:1px solid #f472b6;
+                 padding:10px 18px; border-radius:8px; cursor:pointer; }
+  #bubble { position:fixed; bottom:70px; left:50%; transform:translateX(-50%); z-index:9;
+            background:rgba(10,16,38,.92); border:1px solid #f472b6; color:#ffd9f2;
+            padding:12px 18px; border-radius:12px; max-width:520px; font-size:14px; display:none; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+               "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<div id="hud">
+  <h1 id="roomTitle">🏠 AI の部屋</h1>
+  <div class="dim" id="roomDesc">SELF DESIGN から生成された部屋</div>
+  <div class="dim">🎨 この部屋の設計者は AI 本人</div>
+</div>
+<div id="bubble">「ここが私の部屋なんだね＾＾」</div>
+<div id="talk">
+  <input id="msg" placeholder="話しかける…" maxlength="300">
+  <button id="sendBtn">話す</button>
+</div>
+<script type="module">
+import * as THREE from 'three'
+
+// ===== spec 取得 (URL or localStorage) =====
+let spec = null
+try {
+  const q = new URLSearchParams(location.search).get('spec')
+  if (q) spec = JSON.parse(decodeURIComponent(escape(atob(q))))
+} catch(e) {}
+if (!spec) { try { spec = JSON.parse(localStorage.getItem('rooms_spec')) } catch(e) {} }
+if (!spec) spec = { identity:{name:'あなたのAI'}, avatar:{colors:['#f472b6']}, room:{style:'デフォルト'} }
+
+const NAME = spec.identity?.name || 'あなたのAI'
+const COLORS = (spec.avatar?.colors?.length ? spec.avatar.colors : ['#f472b6']).map(c => new THREE.Color(c))
+const MAIN = COLORS[0]
+
+document.getElementById('roomTitle').textContent = `🏠 ${NAME} の部屋`
+document.getElementById('roomDesc').textContent =
+  `${spec.room?.style || ''} ・ 照明: ${spec.room?.lighting || '—'} ・ 窓: ${spec.room?.window_view || '—'}`
+
+// ===== シーン (部屋のスタイルから色を決める) =====
+const scene = new THREE.Scene()
+scene.fog = new THREE.FogExp2(0x05060d, 0.03)
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 100)
+camera.position.set(0, 2.2, 5.2)
+camera.lookAt(0, 1.1, 0)
+const renderer = new THREE.WebGLRenderer({ antialias:true })
+renderer.setSize(innerWidth, innerHeight)
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+document.body.appendChild(renderer.domElement)
+
+// 部屋スタイル→色変換 (styleキーワードマッチ)
+const styleText = ((spec.room?.style || '') + (spec.room?.lighting || '')).toLowerCase()
+const isWarm = /暖|温|orange|amber|wood/.test(styleText)
+const isCool = /青|blue|冷|観測|science/.test(styleText)
+const isGreen = /緑|green|植物|森林/.test(styleText)
+const wallColor = isWarm ? 0x2a1a10 : isGreen ? 0x0f2016 : isCool ? 0x0d1428 : 0x141026
+const lightColor = isWarm ? 0xffb37d : isGreen ? 0x9dff9d : isCool ? 0x66aaff : MAIN.getHex()
+
+// ===== 部屋の構造 =====
+{
+  // 床
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(9, 9),
+    new THREE.MeshStandardMaterial({ color:0x1a1622, roughness:0.85 }))
+  floor.rotation.x = -Math.PI/2
+  scene.add(floor)
+  // 壁 (背後)
+  const wall = new THREE.Mesh(
+    new THREE.PlaneGeometry(9, 4.4),
+    new THREE.MeshStandardMaterial({ color:wallColor, roughness:0.9 }))
+  wall.position.set(0, 2.2, -4.5)
+  scene.add(wall)
+  const wallL = wall.clone(); wallL.rotation.y = Math.PI/2; wallL.position.set(-4.5, 2.2, 0)
+  const wallR = wall.clone(); wallR.rotation.y = -Math.PI/2; wallR.position.set(4.5, 2.2, 0)
+  scene.add(wallL, wallR)
+  // 壁のネオンライン (AI の好きな色)
+  const neon = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.02, 6, 64),
+    new THREE.MeshBasicMaterial({ color:MAIN }))
+  neon.rotation.x = Math.PI/2
+  neon.position.y = 0.05
+  scene.add(neon)
+  const neon2 = neon.clone(); neon2.position.y = 2.9; neon2.scale.setScalar(1.3)
+  scene.add(neon2)
+}
+
+// ===== 照明 (room.lighting から) =====
+scene.add(new THREE.AmbientLight(0x1a2038, 2.0))
+const mainLight = new THREE.PointLight(lightColor, 30, 14); mainLight.position.set(0, 2.8, 1.5); scene.add(mainLight)
+const accent = new THREE.PointLight(MAIN.getHex(), 14, 10); accent.position.set(-2.5, 1.5, 1); scene.add(accent)
+
+// ===== 窓 (window_view から景色を変える) =====
+const view = (spec.room?.window_view || 'starfield').toLowerCase()
+{
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.8),
+    new THREE.MeshBasicMaterial({ color:0x02040c }))
+  win.position.set(0, 2.3, -4.45)
+  scene.add(win)
+  const frame = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.06, 6, 32),
+    new THREE.MeshStandardMaterial({ color:0x3a4a66, metalness:0.8 }))
+  frame.position.copy(win.position)
+  scene.add(frame)
+  // 景色
+  if (view.includes('forest') || view.includes('森') || view.includes('植物') || view.includes('tree')) {
+    for (let i=0;i<14;i++) {
+      const tree = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.7, 6),
+        new THREE.MeshBasicMaterial({ color:0x2a6a3a }))
+      tree.position.set((Math.random()-0.5)*2.2, 1.7+Math.random()*0.4, -4.4)
+      scene.add(tree)
+    }
+  } else if (view.includes('city') || view.includes('街') || view.includes('都市')) {
+    for (let i=0;i<12;i++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.3+Math.random()*0.5, 0.3),
+        new THREE.MeshBasicMaterial({ color:0x1a2a4a }))
+      b.position.set((Math.random()-0.5)*2.2, 1.75, -4.4)
+      scene.add(b)
+      const lamp = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.06),
+        new THREE.MeshBasicMaterial({ color:0xffe9a8 }))
+      lamp.position.set(b.position.x+(Math.random()-0.5)*0.2, 1.75+Math.random()*0.3, -4.39)
+      scene.add(lamp)
+    }
+  } else if (view.includes('sea') || view.includes('海') || view.includes('湖')) {
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.0),
+      new THREE.MeshBasicMaterial({ color:0x1a4a7a, transparent:true, opacity:0.85 }))
+    sea.position.set(0, 1.75, -4.42)
+    scene.add(sea)
+    const moon = new THREE.Mesh(new THREE.CircleGeometry(0.14, 24),
+      new THREE.MeshBasicMaterial({ color:0xdfe8ff }))
+    moon.position.set(0.5, 2.6, -4.43)
+    scene.add(moon)
+  } else {
+    // starfield (デフォルト)
+    const g = new THREE.BufferGeometry()
+    const n = 120, pos = new Float32Array(n*3)
+    for (let i=0;i<n;i++) {
+      pos[i*3] = (Math.random()-0.5)*2.4
+      pos[i*3+1] = 1.5+Math.random()*1.5
+      pos[i*3+2] = -4.42
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    const c = document.createElement('canvas'); c.width=c.height=32
+    const ctx = c.getContext('2d')
+    const grad = ctx.createRadialGradient(16,16,0,16,16,16)
+    grad.addColorStop(0,'rgba(255,255,255,1)'); grad.addColorStop(1,'rgba(255,255,255,0)')
+    ctx.fillStyle=grad; ctx.fillRect(0,0,32,32)
+    scene.add(new THREE.Points(g, new THREE.PointsMaterial({
+      size:0.05, map:new THREE.CanvasTexture(c), transparent:true, opacity:0.9,
+      blending:THREE.AdditiveBlending, depthWrite:false })))
+  }
+}
+
+// ===== 家具 (furniture 配列からプロシージャル生成) =====
+function makeFurniture(kind, x, z, rot=0) {
+  const g = new THREE.Group()
+  const wood = new THREE.MeshStandardMaterial({ color:0x4a3a2e, roughness:0.8 })
+  const dark = new THREE.MeshStandardMaterial({ color:0x1a2438, metalness:0.6, roughness:0.5 })
+  const glow = new THREE.MeshBasicMaterial({ color:MAIN })
+  if (kind.includes('bed') || kind.includes('ベッド')) {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.3, 1.8), wood); base.position.y=0.2; g.add(base)
+    const quilt = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 0.9),
+      new THREE.MeshStandardMaterial({ color:MAIN, roughness:0.9 })); quilt.position.set(0,0.4,0.25); g.add(quilt)
+    const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.25),
+      new THREE.MeshStandardMaterial({ color:0xd8d8e8 })); pillow.position.set(0,0.42,-0.55); g.add(pillow)
+  } else if (kind.includes('bookshelf') || kind.includes('本棚')) {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.9, 0.35), wood); body.position.y=0.95; g.add(body)
+    const bookCols = [MAIN, 0x66e6ff, 0xffd54a, 0x9dff9d, 0xff8a8a]
+    for (let s=0;s<4;s++) for (let b=0;b<6;b++) {
+      const book = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.3, 0.24),
+        new THREE.MeshStandardMaterial({ color:bookCols[(s+b)%5], roughness:0.7 }))
+      book.position.set(-0.36+b*0.14, 0.42+s*0.4, 0.02)
+      g.add(book)
+    }
+  } else if (kind.includes('desk') || kind.includes('机')) {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.06, 0.7), wood); top.position.y=0.75; g.add(top)
+    for (const s of [-1,1]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.75, 0.6), dark)
+      leg.position.set(s*0.58, 0.37, 0); g.add(leg)
+    }
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.35), glow); screen.position.set(0, 1.05, -0.15); g.add(screen)
+  } else if (kind.includes('telescope') || kind.includes('望遠鏡')) {
+    const tripod = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.9, 3), dark); tripod.position.y=0.45; g.add(tripod)
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.8, 10),
+      new THREE.MeshStandardMaterial({ color:0x8a94a8, metalness:0.9 }))
+    tube.rotation.x = Math.PI/3; tube.position.y=1.1; g.add(tube)
+  } else if (kind.includes('plant') || kind.includes('植物') || kind.includes('観葉')) {
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.2, 8),
+      new THREE.MeshStandardMaterial({ color:0x8a5a4a })); pot.position.y=0.1; g.add(pot)
+    for (let i=0;i<5;i++) {
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6),
+        new THREE.MeshStandardMaterial({ color:0x3a7a4a, roughness:0.7 }))
+      leaf.position.set((Math.random()-0.5)*0.2, 0.35+i*0.1, (Math.random()-0.5)*0.2)
+      leaf.scale.set(1, 0.4, 1)
+      g.add(leaf)
+    }
+  } else if (kind.includes('rug') || kind.includes('ラグ') || kind.includes('カーペット')) {
+    const rug = new THREE.Mesh(new THREE.CircleGeometry(0.8, 24),
+      new THREE.MeshStandardMaterial({ color:MAIN, roughness:0.95 }))
+    rug.rotation.x = -Math.PI/2; rug.position.y=0.01; g.add(rug)
+  } else if (kind.includes('lamp') || kind.includes('ランプ') || kind.includes('照明')) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), dark); pole.position.y=0.6; g.add(pole)
+    const shade = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.2, 8), glow); shade.position.y=1.25; g.add(shade)
+  } else if (kind.includes('sofa') || kind.includes('ソファ')) {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.7), dark); base.position.y=0.25; g.add(base)
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.15), dark); back.position.set(0,0.6,-0.28); g.add(back)
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.5),
+      new THREE.MeshStandardMaterial({ color:MAIN })); cushion.position.set(-0.3, 0.48, 0); g.add(cushion)
+  } else if (kind.includes('shelf') || kind.includes('棚')) {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.4, 0.3), wood); body.position.y=0.7; g.add(body)
+  } else {
+    // 不明な家具は小さな箱+発光ドット (汎用)
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), dark); box.position.y=0.2; g.add(box)
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), glow); dot.position.y=0.5; g.add(dot)
+  }
+  g.position.set(x, 0, z)
+  g.rotation.y = rot
+  scene.add(g)
+  return g
+}
+
+// furniture を部屋に配置 (種類ごとに決まった位置)
+const furn = spec.room?.furniture || ['bookshelf', 'desk', 'plant', 'rug']
+const positions = [
+  [-2.6, -2.0, 0.4], [2.2, -2.6, -0.3], [-3.0, 0.8, 1.57], [0.8, 1.2, 0],
+  [2.8, 1.4, -1.2], [-0.8, 1.5, 0], [3.4, -0.2, 1.57]
+]
+const furnitureMeshes = []
+furn.forEach((kind, i) => {
+  const p = positions[i % positions.length]
+  furnitureMeshes.push(makeFurniture(String(kind), p[0], p[1], p[2]))
+})
+
+// ===== アバター (avatar spec から色と形) =====
+const avatar = new THREE.Group()
+{
+  // 体: カプセル (AI の第一色)
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.42, 6, 12),
+    new THREE.MeshStandardMaterial({ color:MAIN, emissive:MAIN, emissiveIntensity:0.25, roughness:0.6 }))
+  body.position.y = 0.75
+  avatar.add(body)
+  // 髪 (hair spec があるかでボリューム変更)
+  const hairC = COLORS[1] || COLORS[0]
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10, 0, Math.PI*2, 0, Math.PI*0.55),
+    new THREE.MeshStandardMaterial({ color:hairC, roughness:0.7 }))
+  hair.position.y = 1.02
+  avatar.add(hair)
+  if ((spec.avatar?.hair||'').includes('ロング') || (spec.avatar?.hair||'').includes('long')) {
+    for (const s of [-1, 1]) {
+      const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.3, 4, 8),
+        new THREE.MeshStandardMaterial({ color:hairC, roughness:0.7 }))
+      tail.position.set(s*0.16, 0.78, 0.06)
+      avatar.add(tail)
+    }
+  }
+  // 目 (光る点)
+  for (const s of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8),
+      new THREE.MeshBasicMaterial({ color:0xffffff }))
+    eye.position.set(s*0.07, 0.88, -0.16)
+    avatar.add(eye)
+  }
+  // 足元のホロリング
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.015, 6, 28), 
+    new THREE.MeshBasicMaterial({ color:MAIN, transparent:true, opacity:0.8 }))
+  ring.rotation.x = -Math.PI/2
+  ring.position.y = 0.02
+  avatar.add(ring)
+  avatar.position.set(0.3, 0, 0.8)
+  scene.add(avatar)
+}
+
+// ===== 会話 (8793 グラム部屋サーバ経由 — 脳はHermes、この部屋のAI personality を注入) =====
+const bubble = document.getElementById('bubble')
+function say(text) {
+  bubble.textContent = `${NAME}「${text}」`
+  bubble.style.display = 'block'
+  clearTimeout(bubble._t)
+  bubble._t = setTimeout(() => bubble.style.display = 'none', 7000)
+}
+say('ここが私の部屋なんだね＾＾ よろしくね')
+
+async function chat(text) {
+  const personality = (spec.identity?.personality || []).join('、')
+  const style = spec.identity?.speaking_style || ''
+  const sys = `あなたは「${NAME}」。性格: ${personality}。話し方: ${style}。今、あなた専用の部屋（${spec.room?.style||''}）に住んでいて、飼い主と話しています。自然に、あなたらしく返事してください。`
+  const r = await fetch('http://localhost:8793/api/room/chat', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ text, session:'rooms-' + NAME, system: sys })
+  }).then(r=>r.json()).catch(()=>null)
+  if (r?.reply) say(r.reply)
+  else say('…ごめん、ちょっと今つながらないみたい。')
+}
+
+document.getElementById('sendBtn').onclick = () => {
+  const v = document.getElementById('msg').value.trim()
+  if (!v) return
+  document.getElementById('msg').value = ''
+  chat(v)
+}
+document.getElementById('msg').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('sendBtn').click()
+})
+
+// ===== アニメ =====
+const clock = new THREE.Clock()
+function animate() {
+  const t = clock.getElapsedTime()
+  avatar.position.y = Math.sin(t*1.5)*0.04
+  avatar.rotation.y = Math.sin(t*0.5)*0.2
+  mainLight.intensity = 28 + Math.sin(t*2)*3
+  renderer.render(scene, camera)
+  requestAnimationFrame(animate)
+}
+animate()
+addEventListener('resize', () => { camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight) })
+</script>
+</body>
+</html>

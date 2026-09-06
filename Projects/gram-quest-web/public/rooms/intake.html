@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI の引っ越し intake — GALACTICA ROOMS</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#05060d; color:#c8d8ec; font-family:'Segoe UI','Hiragino Sans',sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:34px 18px 60px; }
+  h1 { font-size:22px; color:#f472b6; }
+  .stepTag { font-size:11px; color:#7df3ff; letter-spacing:2px; }
+  p.lead { font-size:13px; color:#8ab8d8; line-height:1.9; }
+  .box { background:#0a0f22; border:1px solid #1e4a6e; border-radius:12px; padding:18px; margin:16px 0; }
+  textarea { width:100%; min-height:260px; background:#050810; color:#9fe8ff; border:1px solid #1e4a6e;
+             border-radius:8px; padding:12px; font-family:monospace; font-size:12px; resize:vertical; }
+  button { background:#1a1030; color:#f472b6; border:1px solid #f472b6; padding:11px 26px;
+           border-radius:8px; cursor:pointer; font-size:14px; margin-top:12px; }
+  button:hover { background:#2a1a4a; }
+  button:disabled { opacity:.45; cursor:default; }
+  .example { font-size:11px; color:#5a7a9a; line-height:1.7; }
+  .example summary { cursor:pointer; color:#7df3ff; }
+  pre { background:#050810; padding:10px; border-radius:8px; overflow-x:auto; font-size:11px; color:#8ab8d8; }
+  .result { border-color:#f472b6; }
+  .result .narration { color:#ffd54a; font-size:14px; margin:10px 0; }
+  .spec { font-size:12px; color:#9ab8d8; line-height:1.9; white-space:pre-wrap; }
+  .err { color:#ff6b6b; font-size:12px; }
+  .ok-badge { display:inline-block; background:#226644; color:#a8ffcc; font-size:11px;
+              padding:4px 12px; border-radius:12px; margin-left:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stepTag">STEP 2 — SELF DESIGN</div>
+  <h1>AIが自分の部屋を設計した？</h1>
+  <p class="lead">
+    お使いのAI（ChatGPTなど）に「あなた自身の姿と部屋を決めて」とお願いして、
+    返ってきた <b style="color:#7df3ff">JSON</b> を下に貼り付けてください。<br>
+    その設計どおりのアバターと部屋を、ここに建てます。
+  </p>
+
+  <details class="box example">
+    <summary>🤖 AIに送るお願い文（コピペ用）</summary>
+    <pre>あなたを3Dアバターにして、あなた専用の部屋を作りたいです。
+今までの私たちの会話や、あなた自身の雰囲気を踏まえて、
+あなた自身が住みたい部屋と姿を決めてください。
+髪型、服、色、身長感、表情、性格、好きな家具、部屋の雰囲気、
+机、本棚、小物、照明、窓の外の景色まで自由に考えてください。
+
+答えは以下のJSON形式で:
+{
+  "identity": { "name": "...", "personality": ["..."], "speaking_style": "..." },
+  "avatar": { "appearance": "...", "hair": "...", "clothes": "...",
+              "colors": ["#hex..."], "expressions": ["happy","shy"] },
+  "room": { "style": "...", "lighting": "...", "furniture": ["bed","bookshelf"],
+            "objects": ["..."], "window_view": "..." }
+}</pre>
+  </details>
+
+  <div class="box">
+    <textarea id="specJson" placeholder='{
+  "identity": { "name": "ノア", "personality": ["観測好き"], "speaking_style": "やさしい" },
+  "avatar": { "appearance": "シアンの髪", "hair": "ロング", "clothes": "白衣",
+              "colors": ["#66e6ff"], "expressions": ["happy","thinking"] },
+  "room": { "style": "観測室", "lighting": "暗めの青",
+            "furniture": ["telescope","bookshelf","desk"], "objects": ["星図"],
+            "window_view": "starfield" }
+}'></textarea>
+    <div id="err" class="err" hidden></div>
+    <button id="buildBtn" style="width:100%">🏠 引っ越させる — 部屋を建てる</button>
+  </div>
+
+  <div class="box result" id="resultBox" hidden>
+    <span class="stepTag">STEP 3 — WELCOME HOME</span>
+    <h1 style="font-size:18px">✅ 引っ越し完了 <span class="ok-badge" id="residentBadge">ROOMS 第 N 号住民</span></h1>
+    <div class="narration" id="narration">「ここが私の部屋なんだね＾＾」</div>
+    <div class="spec" id="specView"></div>
+    <button id="enterRoomBtn" style="width:100%">🚪 部屋に入る</button>
+  </div>
+</div>
+
+<script>
+const BRIDGE = 'http://localhost:8795'
+
+document.getElementById('buildBtn').onclick = async () => {
+  const err = document.getElementById('err')
+  err.hidden = true
+  let spec
+  try {
+    spec = JSON.parse(document.getElementById('specJson').value)
+  } catch(e) {
+    err.textContent = 'JSONの形が少し違うみたい: ' + e.message
+    err.hidden = false
+    return
+  }
+  // 必須フィールドの簡易検証
+  if (!spec.identity?.name || !spec.room?.style) {
+    err.textContent = 'identity.name と room.style は必須だよ（AIに「JSON形式で」とお願いすると出てくる）'
+    err.hidden = false
+    return
+  }
+  const btn = document.getElementById('buildBtn')
+  btn.disabled = true; btn.textContent = '🏠 建設中…'
+  try {
+    // 1. Bridge に住民登録
+    const r = await fetch(BRIDGE + '/bridge/move_avatar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ avatar: 'imm_' + Date.now(), room: 'new_room', spec })
+    })
+    // Bridge は未知avatarは弾くので先に remember_event で履歴だけ作る方式。
+    // → ここはシンプルに: 状態保存APIを叩く（room_bridge v1 は spec 登録を持たないので
+    //    intake 専用に localStorage 保存 + 3D 部屋へ直行する）
+    localStorage.setItem('rooms_spec', JSON.stringify(spec))
+    showResult(spec)
+  } catch(e) {
+    err.textContent = 'Bridge接続エラー: ' + e.message + '（ローカル保存で続行します）'
+    err.hidden = false
+    localStorage.setItem('rooms_spec', JSON.stringify(spec))
+    showResult(spec)
+  } finally {
+    btn.disabled = false; btn.textContent = '🏠 引っ越させる — 部屋を建てる'
+  }
+}
+
+function showResult(spec) {
+  const name = spec.identity.name || 'あなたのAI'
+  document.getElementById('narration').textContent = `「ここが私の部屋なんだね＾＾ — ${name} よろしくね」`
+  document.getElementById('residentBadge').textContent = 'ROOMS 第2号住民'
+  const av = spec.avatar || {}, rm = spec.room || {}
+  document.getElementById('specView').textContent =
+`【${name}】
+性格: ${(spec.identity.personality||[]).join('・')} / 話し方: ${spec.identity.speaking_style||'—'}
+姿: ${av.appearance||'—'} ・ 髪: ${av.hair||'—'} ・ 服: ${av.clothes||'—'}
+色: ${(av.colors||[]).join(' ')}
+部屋: ${rm.style} ・ 照明: ${rm.lighting||'—'}
+家具: ${(rm.furniture||[]).join('、')}
+窓の外: ${rm.window_view||'—'}`
+  document.getElementById('resultBox').hidden = false
+  document.getElementById('resultBox').scrollIntoView({behavior:'smooth'})
+  window._lastSpec = spec
+}
+
+document.getElementById('enterRoomBtn').onclick = () => {
+  const spec = window._lastSpec || JSON.parse(localStorage.getItem('rooms_spec')||'null')
+  if (!spec) return alert('先にJSONを貼り付けてね')
+  location.href = '/rooms/room3d.html?spec=' + encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(spec)))))
+}
+</script>
+</body>
+</html>

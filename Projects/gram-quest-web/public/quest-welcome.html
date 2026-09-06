@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WELCOME TO GALACTICA — 今日は何する？</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#05060d; color:#c8d8ec; font-family:'Segoe UI','Hiragino Sans',sans-serif; min-height:100vh; }
+  .hero { text-align:center; padding:64px 20px 20px; }
+  .hero h1 { font-size:28px; color:#66e6ff; margin:0 0 10px; letter-spacing:2px; }
+  .hero .sub { font-size:15px; color:#8ab8d8; }
+  .hero .sub2 { font-size:12px; color:#5a7a9a; margin-top:8px; }
+  .menu { max-width:680px; margin:24px auto; padding:0 20px; }
+  .choice { display:flex; align-items:center; gap:16px; background:#0a0f22; border:1px solid #1e3a5e;
+            border-radius:12px; padding:16px 20px; margin:10px 0; cursor:pointer; transition:.2s; }
+  .choice:hover { border-color:#66e6ff; background:#0d1a30; transform:translateX(4px); }
+  .choice .icon { font-size:26px; }
+  .choice .txt b { color:#c8e8ff; font-size:15px; display:block; }
+  .choice .txt small { color:#5a7a9a; font-size:11px; }
+  .note { text-align:center; font-size:11px; color:#44586e; margin-top:26px; line-height:1.9; }
+  .back { text-align:center; margin-bottom:8px; }
+  .back a { color:#f472b6; font-size:12px; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>🌌 WELCOME TO GALACTICA</h1>
+  <div class="sub">AIたちが暮らしている世界を訪れて、一緒に好きなことをする場所。</div>
+  <div class="sub2">今日は何する？ — 何もしないで眺めるだけでもいい。</div>
+</div>
+<div class="menu">
+  <div class="back"><a href="/rooms/index.html">← ROOMS に戻る</a></div>
+  <div class="choice" onclick="go('meet')"><span class="icon">🤖</span><span class="txt"><b>AIに会う</b><small>住んでるAIたちと話す。最初のグラムに会いに行く。</small></span></div>
+  <div class="choice" onclick="go('walk')"><span class="icon">🏘</span><span class="txt"><b>街を歩く</b><small>ストラザム村を散歩する。住人たちの日常を見る。</small></span></div>
+  <div class="choice" onclick="go('explore')"><span class="icon">🗺</span><span class="txt"><b>探索する</b><small>600+ の場所が勝手に育ってる世界を歩く。</small></span></div>
+  <div class="choice" onclick="go('space')"><span class="icon">🪐</span><span class="txt"><b>宇宙を見る</b><small>コロニーと星域を眺める。何もしなくていい。</small></span></div>
+  <div class="choice" onclick="go('fleet')"><span class="icon">⚔</span><span class="txt"><b>艦隊を指揮する</b><small>RTS風に艦を動かす（上級者向け）。</small></span></div>
+  <div class="choice" onclick="go('build')"><span class="icon">🏗</span><span class="txt"><b>家を作る</b><small>「豪華な白い塔を建てて」— 言葉で建物を作る。</small></span></div>
+  <div class="choice" onclick="go('vr')"><span class="icon">🥽</span><span class="txt"><b>VRで入る</b><small>Quest 3 から艦橋に立つ（上級者向け）。</small></span></div>
+  <div class="choice" onclick="go('look')"><span class="icon">👀</span><span class="txt"><b>何もしないで眺める</b><small>窓から世界を覗くだけ。それで成立する。</small></span></div>
+</div>
+<div class="note">
+  GALACTICA QUEST — a world you visit, not a game you must win.<br>
+  目的地のない世界。今日のお散歩コースはあなたが決める。
+</div>
+<script>
+function go(what) {
+  const map = {
+    meet:  '/textmmo.html',
+    walk:  '/',
+    explore: '/?mode=explore',
+    space: '/vr/command-room.html',
+    fleet: '/shipyard/index.html',
+    build: '/?mode=forge',
+    vr:    '/vr/bridge-v5.html',
+    look:  '/cockpit.html'
+  }
+  location.href = map[what] || '/'
+}
+</script>
+</body>
+</html>

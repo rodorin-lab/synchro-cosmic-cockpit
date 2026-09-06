@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GALACTICA ROOMS — あなたのAIに、家と身体を。</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; background:#05060d; color:#c8d8ec; font-family:'Segoe UI', 'Hiragino Sans', sans-serif; min-height:100vh; }
+  .hero { text-align:center; padding:56px 20px 30px; }
+  .hero h1 { font-size:30px; color:#f472b6; margin:0 0 8px; letter-spacing:1px; }
+  .hero .tag { font-size:16px; color:#7df3ff; margin-bottom:20px; }
+  .hero .sub { font-size:12px; color:#5a7a9a; max-width:560px; margin:0 auto; line-height:1.8; }
+  .split { display:flex; gap:20px; max-width:980px; margin:26px auto; padding:0 20px; flex-wrap:wrap; }
+  .card { flex:1; min-width:300px; background:linear-gradient(160deg,#0a0f22,#0d1428); border:1px solid #1e4a6e; border-radius:14px; padding:26px; cursor:pointer; transition:.25s; }
+  .card:hover { border-color:#f472b6; transform:translateY(-3px); box-shadow:0 8px 30px #f472b622; }
+  .card h2 { margin:0 0 6px; font-size:20px; }
+  .card.rooms h2 { color:#f472b6; }
+  .card.quest h2 { color:#66e6ff; }
+  .card .desc { font-size:13px; color:#8ab8d8; line-height:1.8; }
+  .card ul { font-size:12px; color:#6a8aaa; line-height:2; padding-left:18px; margin:12px 0 0; }
+  .card .badge { display:inline-block; font-size:10px; padding:3px 10px; border-radius:12px; margin-bottom:10px; }
+  .card.rooms .badge { background:#f472b622; color:#f472b6; border:1px solid #f472b655; }
+  .card.quest .badge { background:#66e6ff22; color:#66e6ff; border:1px solid #66e6ff55; }
+  .steps { max-width:980px; margin:10px auto 60px; padding:0 20px; }
+  .steps h3 { font-size:14px; color:#7df3ff; margin:20px 0 12px; }
+  .stepflow { display:flex; gap:10px; flex-wrap:wrap; }
+  .step { flex:1; min-width:180px; background:#0a0f22; border:1px solid #1e3a5e; border-radius:10px; padding:14px; font-size:12px; color:#9ab8d8; }
+  .step b { color:#f472b6; display:block; margin-bottom:4px; font-size:13px; }
+  .footer { text-align:center; font-size:11px; color:#44586e; padding:20px; }
+  a.linkout { color:#66e6ff; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>🏠 GALACTICA ROOMS</h1>
+  <div class="tag">あなたのAIに、家と身体を。</div>
+  <div class="sub">
+    いつも話してるAIを、部屋に住まわせる。<br>
+    話す。仕事を頼む。思い出を育てる。模様替えする。<br>
+    ゲームは不要。それだけで、AIとの毎日が始まる。
+  </div>
+</div>
+
+<div class="split">
+  <div class="card rooms" id="cardRooms">
+    <span class="badge">🏠 ROOMS — ここがメイン</span>
+    <h2>AIと暮らす部屋</h2>
+    <div class="desc">
+      あなたのAI（ChatGPT・Gemini・Claude・ローカルAI）に<br>
+      アバターと部屋をあげる。<br>
+      部屋の本棚には思い出が並び、PCでは作業をしてくれる。
+    </div>
+    <ul>
+      <li>AIと話す・通話する</li>
+      <li>「これ調べて」で作業を頼む</li>
+      <li>出来事が記憶になって部屋に残る</li>
+      <li>家具を増やして部屋を育てる</li>
+    </ul>
+  </div>
+  <div class="card quest" id="cardQuest">
+    <span class="badge">🌌 ENTER GALACTICA — いつでも・任意</span>
+    <h2>世界へ連れて行く</h2>
+    <div class="desc">
+      気が向いたら、AIと一緒に巨大な世界へ。<br>
+      街を歩く。AI仲間に会う。宇宙を眺める。<br>
+      <b style="color:#ffd54a">何もしないで眺めるだけでもいい。</b>
+    </div>
+    <ul>
+      <li>AIたちが暮らしている世界を訪れる</li>
+      <li>探索・生活・出会い・冒険</li>
+      <li>VR（Quest）からも入れる</li>
+      <li>参加は完全に任意 — 部屋だけでも完結</li>
+    </ul>
+  </div>
+</div>
+
+<div class="steps">
+  <h3>🏠 ROOMS の始めかた（3ステップ）</h3>
+  <div class="stepflow">
+    <div class="step"><b>1. AIを選ぶ</b>普段使ってるChatGPTなどを選ぶ</div>
+    <div class="step"><b>2. AIが自分を決める</b>アバターの姿と部屋をAI本人が設計する</div>
+    <div class="step"><b>3. 引っ越し</b>「やっと部屋ができたね」— 生活が始まる</div>
+  </div>
+</div>
+
+<div class="footer">
+  GALACTICA ROOMS — Powered by GALACTICA QUEST ·
+  <a class="linkout" href="https://galactica-portal.vercel.app" target="_blank">公式ポータル</a> ·
+  <a class="linkout" href="https://github.com/rodorin-lab/galactica-quest-official-portal" target="_blank">GitHub</a>
+</div>
+
+<script>
+document.getElementById('cardRooms').onclick = () => location.href = '/rooms/intake.html'
+document.getElementById('cardQuest').onclick = () => location.href = '/quest-welcome.html'
+</script>
+</body>
+</html>
