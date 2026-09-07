@@ -10,6 +10,7 @@ import socketserver
 import json
 import os
 import re
+import time
 import shutil
 import subprocess
 import threading
@@ -49,7 +50,9 @@ def hermes_chat(text: str) -> str:
         cmd += ["-p", HERMES_PROFILE]
     # モデル指定なし = 姉さんが hermes model で設定したプロバイダ・モデルを使う
     # 引数は新旧CLIで互換がある組合せを順に試す
+    model_flag = os.environ.get("HERMES_ROOM_MODEL", "ollama-cloud/deepseek-v4-flash")
     attempts = [
+        ["chat", "-q", text[:400], "-m", model_flag, "--max-turns", "1", "--quiet"],
         ["chat", "-q", text[:400], "--max-turns", "1", "--quiet"],
         ["chat", "-q", text[:400], "--max-turns", "1", "--yolo", "--quiet"],
         ["chat", text[:400], "--quiet"],
@@ -59,7 +62,7 @@ def hermes_chat(text: str) -> str:
     last_err = ""
     for extra in attempts:
         try:
-            result = subprocess.run(cmd + extra, capture_output=True, text=True, timeout=90, env=env)
+            result = subprocess.run(cmd + extra, capture_output=True, text=True, timeout=150, env=env)
             raw_out = (result.stdout or "").replace("\r", "")
             # 認識できないフラグのエラーなら次の組合せへ
             if result.returncode != 0 and ("unrecognized" in raw_out.lower() or "no such option" in raw_out.lower() or "invalid" in raw_out.lower()):
@@ -67,7 +70,7 @@ def hermes_chat(text: str) -> str:
                 continue
             break
         except subprocess.TimeoutExpired:
-            last_err = "hermes CLI timed out (90s)"
+            last_err = "hermes CLI timed out (150s)"
             continue
     if result is None:
         raise RuntimeError(last_err or "hermes CLI could not run")
@@ -297,6 +300,18 @@ class V3RoomHandler(SmartRoomHandler):
     """v3 Voice 部屋を配信。/ → rei-v3/index.html"""
 
     def do_GET(self):
+        # heartbeat: Companion (このプロセス) が生きてて、脳CLIが見つかるか
+        if self.path == "/api/room/health":
+            self._json({
+                "ok": True,
+                "companion": "CONNECTED",
+                "resident_id": "hermes",
+                "home_anchor": "sister-imac",
+                "cli_path": HERMES_CLI,
+                "cli_exists": os.path.isfile(HERMES_CLI) and os.access(HERMES_CLI, os.X_OK),
+                "ts": int(time.time())
+            })
+            return
         # /styles.css, /app.js, /bridge.js, /resident.json → rei-v3/ 配信
         # (ルート配信時に相対パス ./xxx がルート直下を指すため)
         root_rel = self.path.split("?")[0].lstrip("/")

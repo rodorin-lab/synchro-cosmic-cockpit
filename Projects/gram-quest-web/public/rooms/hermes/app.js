@@ -491,8 +491,9 @@ setTimeout(() => focus('room', false), 350);
 // 返答生成は Hermes 自身 (姉さんのiMac・Ollama Cloud)。人格注入なし。
 try {
   if (window.REI_ROOM_BRIDGE && !window.REI_ROOM_BRIDGE.connected) {
+    const apiBase = (window.HERMES_ROOM_CONFIG && window.HERMES_ROOM_CONFIG.apiBase) || '';
     window.REI_ROOM_BRIDGE.connect(
-      window.REI_ROOM_BRIDGE.createHttpAdapter({ chatUrl: '/api/room/chat' }),
+      window.REI_ROOM_BRIDGE.createHttpAdapter({ chatUrl: apiBase + '/api/room/chat' }),
       'hermes-http'
     );
     const callStatus = document.getElementById('callStatus');

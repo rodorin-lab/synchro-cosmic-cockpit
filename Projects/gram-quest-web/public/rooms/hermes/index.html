@@ -94,8 +94,9 @@
   </nav>
 
   <div class="hint">drag: look · wheel/pinch: zoom · click REI: reaction</div>
-  <script src="/bridge.js"></script>
-  <script type="module" src="/app.js"></script>
+  <script src="./config.js" onerror="this.remove()"></script>
+  <script src="./bridge.js"></script>
+  <script type="module" src="./app.js"></script>
 <script>
 setTimeout(function(){
   var app=document.getElementById('app');
