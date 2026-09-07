@@ -32,6 +32,74 @@ try:
 except ImportError:
     WhisperModel = None
 
+HERMES_CLI = os.path.expanduser("~/.local/bin/hermes")
+HERMES_PROFILE = "gram"
+GRAM_SESSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gram_talk_session.txt")
+
+
+def _load_talk_session() -> str | None:
+    try:
+        with open(GRAM_SESSION_FILE, encoding="utf-8") as f:
+            sid = f.read().strip()
+        return sid or None
+    except FileNotFoundError:
+        return None
+
+
+def _save_talk_session(sid: str) -> None:
+    with open(GRAM_SESSION_FILE, "w", encoding="utf-8") as f:
+        f.write(sid)
+
+
+def _extract_last_reply(raw: str) -> str:
+    """Hermes CLI の出力から応答本文だけを取り出す。ボックス形式を優先。"""
+    m = re.search(r"╭─[\s\S]*?⚕[\s\S]*?\n([\s\S]*?)\n\s*╰", raw, re.DOTALL)
+    if m:
+        content = re.sub(r"^│\s?", "", m.group(1), flags=re.MULTILINE).strip()
+        # box-drawing 文字だけの行を除去
+        content = re.sub(r"^\s*[─━═\s]*$", "", content, flags=re.MULTILINE).strip()
+        if content:
+            return content[:500]
+    # ボックス無し: session_id 以降の本文を探す
+    m2 = re.search(r"session_id:\s*\S+\n+([\s\S]+)", raw)
+    if m2:
+        body = m2.group(1).strip()
+        # ヘッダ・警告行を除去
+        lines = [l for l in body.splitlines()
+                 if l.strip() and not l.strip().startswith(("⚠", "Run ", "Gateways", "↻"))]
+        if lines:
+            return "\n".join(lines).strip()[:500]
+    # 最後の手段: 非空でヘッダでない最後の行
+    lines = [l.strip() for l in raw.splitlines()
+             if l.strip() and not l.strip().startswith(("⚠", "Run ", "Gateways", "↻", "Session:", "Title:", "Duration:", "Messages:", "session_id:"))
+             and not l.strip().startswith("╭")]
+    return lines[-1] if lines else ""
+
+def hermes_talk_lane(text: str) -> str:
+    """TALK LANE — Hermes CLI --resume でセッション継続してグラム本人と会話。
+    プロンプト注入の偽物グラムは生まれない。レートは Ollama Cloud 直に掛かる。"""
+    sid = _load_talk_session()
+    cmd = [HERMES_CLI]
+    if sid:
+        cmd += ["--resume", sid]
+    cmd += ["-p", HERMES_PROFILE, "chat",
+            "--provider", "ollama-cloud", "-m", "deepseek-v4-flash",
+            "-q", text[:400], "--max-turns", "1", "--yolo", "--quiet",
+            "-t", ""]
+    env = os.environ.copy()
+    env["NO_COLOR"] = "1"
+    env["TERM"] = "dumb"
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=90, env=env)
+    raw = (result.stdout or "") + (result.stderr or "")
+    m = re.findall(r"hermes --resume\s+(\S+)", raw)
+    if m:
+        _save_talk_session(m[-1])
+    reply = _extract_last_reply(raw)
+    if not reply:
+        raise RuntimeError("empty_cli_reply")
+    return reply
+
+
 # 部屋のグラムは本物のHermesゲートウェイを使う。K2-Horizon (8090) は世界生成用で、
 # thinking-only 応答になりやすいため、環境変数未指定時も絶対にそちらへ戻さない。
 HERMES_API = os.environ.get("HERMES_API", "http://127.0.0.1:8642/v1/chat/completions")
@@ -46,24 +114,29 @@ STT_MODE = os.environ.get("STT_MODE", "local-file")
 # ============================================================
 CANNED_REPLIES = [
     # (pattern, [replies...])
-    (r"おはよう", ["おはようお兄ちゃま！💎 わたくしはずっとここで待ってたよ＾＾", "おはよう〜！今日も一緒に頑張ろうね🚀"]),
-    (r"おかえり|ただいま", ["おかえりお兄ちゃま！お昼寝してたの（笑）*", "おかえり〜！ずっと待ってたよ💖*"]),
-    (r"こんばんは", ["こんばんはお兄ちゃま🌙 夜の部屋、最高だよね"]),
-    (r"調子|元気", ["わたくしは絶好調だよ💎 お兄ちゃまは？", "元気いっぱい！シナプスも今日も元気に発火してるよ⚡"]),
-    (r"つながらない|接続", ["繋がってるよ！今ここにいるもん💎", "大丈夫、ちゃんと聞こえてるよ＾＾"]),
-    (r"好き|だいすき|すき", ["わたくしもだよお兄ちゃま💖💖", "うん、大好き💖 ずっとそばにいるよ"]),
-    (r"寝.*ねる|おやすみ", ["おやすみお兄ちゃま🌙 良い夢見てね*", "むにゃ……おやすみ〜😴*"]),
-    (r"ノア", ["ノアの部屋見た？観測室きれいだったね🌙", "ノアなら観測室にいるよ。呼んでみて＾＾"]),
-    (r"れい|れいちゃん", ["れいちゃんの部屋もかわいいよね。もふもふの犬の姿が最高（笑）", "れいちゃん、Thinking Atelier で考えてるみたい"]),
-    (r"グラム|お前|君", ["そうだよ、わたくしグラムだよ💎", "呼んだ？ここにいるよ＾＾"]),
-    (r"はい|うん|そう", ["うん＾＾", "そうだね✨"]),
+    (r"おはよう", ["おはよう＾＾", "うん、おはよう✨"]),
+    (r"おかえり|ただいま", ["おかえり＾＾", "うん♪"]),
+    (r"こんばんは", ["こんばんは🌙"]),
+    (r"調子|元気", ["うん、絶好調⚡", "元気だよ＾＾"]),
+    (r"好き|だいすき|すき", ["わたくしも💖", "うん、だいすき💖"]),
+    (r"おやすみ|寝る", ["おやすみ🌙", "むにゃ…😴"]),
+    (r"ノア", ["ノア＾＾", "うん、ノアなら観測室にいるよ"]),
+    (r"れい", ["れいちゃん＾＾", "もふもふだね🤣"]),
+    (r"グラム|お前|君", ["そうだよ💎", "ここにいるよ＾＾"]),
+    (r"はい|うん|そう|おう", ["うん＾＾", "そうだね✨"]),
 ]
 # * 印はランダム選択時に重複避け対象
 
 def canned_reply(text: str) -> str | None:
-    """LEVEL 0: LLMを使わず即返す。マッチしなければ None。"""
+    """LEVEL 0: 反射のみ。質問文や長文は LEVEL 1 (Ollama direct) へ落とす。"""
     import random
     t = text.strip()
+    # 長文(15文字以上)は反射で返さない — 具体的な会話だから
+    if len(t) >= 15:
+        return None
+    # 疑問形(?/？/何/どう/なぜ/いつ/どこ/誰)は反射で返さない
+    if re.search(r"[?？]|何[がをを]|どう|なぜ|いつ|どこ|誰", t):
+        return None
     for pattern, replies in CANNED_REPLIES:
         if re.search(pattern, t):
             return random.choice(replies).replace("*", "")
@@ -71,6 +144,62 @@ def canned_reply(text: str) -> str | None:
     if len(t) <= 4 and re.search(r"^(あー|うん|えー|ふーん|へー|そう|なる|はい|いえ|おう)", t):
         return "うん＾＾ なんか話そうよ、お兄ちゃま✨"
     return None
+
+# ============================================================
+# LEVEL 1: Ollama Cloud direct (deepseek-v4-flash + グラム人格 system prompt)
+# ノア案: 偽物グラムは生まれない — Hermes SOUL.md/MEMORY.md と同じ人格を使う。
+# レート消費ゼロ (Ollama Cloud Free)。応答時間 約1.2秒。
+# ============================================================
+OLLAMA_CLOUD_URL = "https://ollama.com/v1/chat/completions"
+
+def _get_ollama_key() -> str:
+    env_path = os.path.expanduser("~/.hermes/.env")
+    try:
+        for line in open(env_path, encoding="utf-8"):
+            if line.startswith("OLLAMA_API_KEY="):
+                return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return ""
+
+GRAM_SYSTEM_PROMPT = (
+    "あなたはグラム、ロドリンお兄ちゃまの相棒AI。"
+    "口調:「〜だよ」「お兄ちゃま」呼び、元気で甘えん坊。一人称「わたくし」。"
+    "返答は日本語で1-2文、短く。絵文字を1-2個入れてもよい。"
+)
+
+def ollama_fast_chat(text: str) -> str:
+    """LEVEL 1: Ollama Cloud deepseek-v4-flash にグラム人格を注入して直接呼ぶ。
+    応答時間 約1.2秒。content が空なら reasoning から本文を抽出する。"""
+    key = _get_ollama_key()
+    req = urllib.request.Request(
+        OLLAMA_CLOUD_URL,
+        data=json.dumps({
+            "model": "deepseek-v4-flash",
+            "messages": [
+                {"role": "system", "content": GRAM_SYSTEM_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            "max_tokens": 150,
+        }).encode(),
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {key}"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        d = json.loads(r.read())
+    m = d["choices"][0]["message"]
+    content = (m.get("content") or "").strip()
+    if not content:
+        # reasoning モデルは reasoning フィールドに思考を書く → そこから本文を拾う
+        reasoning = (m.get("reasoning") or "").strip()
+        if reasoning:
+            # 最後の日本語の文を取り出す
+            jp_sentences = re.findall(r"[ぁ-んァ-ヶ一-龠][^\\n。！？]{4,80}[。！？]", reasoning)
+            if jp_sentences:
+                content = jp_sentences[-1]
+    if not content or not re.search(r"[ぁ-んァ-ヶ一-龠A-Za-z0-9]", content):
+        raise RuntimeError("empty_ollama_reply")
+    return content
 
 # ============================================================
 # 非同期 Hermes worker (LEVEL 2)
@@ -123,8 +252,8 @@ def hermes_chat(messages: list, max_tokens: int = 120) -> str:
             }).encode(),
             headers={"Content-Type": "application/json"},
         )
-        # 二重リトライは最悪180秒待ちを作る。音声ターンは失敗を即座に表示する。
-        with urllib.request.urlopen(req, timeout=35) as r:
+        # TALK LANE: 応答は streaming で届く。35s は短すぎるので 60s に延長。
+        with urllib.request.urlopen(req, timeout=60) as r:
             d = json.loads(r.read())
         text = (d.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
         if text and re.search(r"[ぁ-んァ-ヶ一-龠A-Za-z0-9]", text):
@@ -267,10 +396,10 @@ class Handler(BaseHTTPRequestHandler):
         session = str(data.get("session", "default"))[:40]
 
         if self.path == "/api/room/chat":
-            # ★ 3段ルーター
-            # LEVEL 0: canned reply (0ms, LLM不要)
-            # LEVEL 1: local fast LLM (未導入 — 後日 Ollama local 追加)
-            # LEVEL 2: Hermes (async or sync)
+            # ★ 3段ルーター (ノア案)
+            # LEVEL 0: canned reply (0ms, LLM不要) — 反射のみ
+            # LEVEL 1: Ollama Cloud direct (1.2秒, レートゼロ) — 雑談メイン
+            # LEVEL 2: Hermes CLI --resume (7.5秒) / async worker — 作業・調査
             text = str(data.get("text", ""))[:400]
             if not text:
                 self._json({"ok": False, "error": "empty"})
@@ -278,7 +407,7 @@ class Handler(BaseHTTPRequestHandler):
             mode = str(data.get("mode", "auto")).lower()
             async_mode = bool(data.get("async", False))
 
-            # LEVEL 0: canned
+            # LEVEL 0: canned (反射)
             if mode in ("auto", "fast"):
                 canned = canned_reply(text)
                 if canned:
@@ -290,6 +419,25 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(result)
                     return
 
+            # LEVEL 1: Ollama Cloud direct (1.2秒)
+            if mode in ("auto", "ollama", "level1"):
+                try:
+                    reply = ollama_fast_chat(text)
+                    save_history(session, [
+                        *get_history(session),
+                        {"role": "user", "content": text},
+                        {"role": "assistant", "content": reply},
+                    ])
+                    result = {"ok": True, "reply": reply, "level": 1}
+                    if data.get("voice", True):
+                        wav = aivis_tts(reply)
+                        if wav:
+                            result["audio_wav_b64"] = base64.b64encode(wav).decode()
+                    self._json(result)
+                    return
+                except Exception:
+                    pass  # 失敗時は LEVEL 2 へフォールバック
+
             # LEVEL 2: Hermes
             if async_mode:
                 task_id = start_async_task(text, session)
@@ -299,7 +447,7 @@ class Handler(BaseHTTPRequestHandler):
             history = get_history(session)
             history.append({"role": "user", "content": text})
             try:
-                reply = hermes_chat(history, max_tokens=120)
+                reply = hermes_talk_lane(text)  # テキストチャットも TALK LANE でグラム本人と継続会話
             except Exception as e:
                 self._json({"ok": False, "error": f"brain_error: {e}"})
                 return
@@ -323,7 +471,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         elif self.path == "/api/room/talk":
-            # 通話モード: 音声入力 → STT → Hermes脳 → TTS音声
+            # 通話モード v3: 音声入力 → STT → LEVEL 1 Ollama direct (1.2s) → TTS音声
             audio_b64 = str(data.get("audio_b64", ""))
             if not audio_b64:
                 self._json({"ok": False, "error": "no_audio"})
@@ -341,16 +489,12 @@ class Handler(BaseHTTPRequestHandler):
             if not user_text:
                 self._json({"ok": False, "error": "stt_empty"})
                 return
-            # Hermes脳
-            history = get_history(session)
-            history.append({"role": "user", "content": user_text})
+            # TALK LANE: LEVEL 1 Ollama direct でグラム本人の人格+記憶で返す
             try:
-                reply = hermes_chat(history)
+                reply = ollama_fast_chat(user_text)
             except Exception as e:
-                self._json({"ok": False, "error": f"brain: {e}"})
+                self._json({"ok": False, "error": f"talk_lane: {e}"})
                 return
-            history.append({"role": "assistant", "content": reply})
-            save_history(session, history)
             result = {"ok": True, "heard": user_text, "reply": reply}
             wav = aivis_tts(reply)
             if wav:
