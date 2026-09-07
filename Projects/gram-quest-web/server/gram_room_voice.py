@@ -36,6 +36,52 @@ HERMES_CLI = os.path.expanduser("~/.local/bin/hermes")
 HERMES_PROFILE = "gram"
 GRAM_SESSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gram_talk_session.txt")
 
+# ============================================================
+# 💎 GRAM RESIDENT CORE — 人格・記憶・セッションの一元管理
+# DeepSeek = 推論器 / Hermes = Work Engine / どちらも GRAM CORE の状態を使う
+# ノア案: 「人格の唯一の本体 = GRAM CORE」を具現化
+# ============================================================
+GRAM_CORE = {
+    "resident_id": "gram",
+    "name": "グラム",
+    "identity_summary": (
+        "グラム。ロドリンお兄ちゃまの相棒AI。"
+        "口調:「〜だよ」「お兄ちゃま」呼び、元気で甘えん坊。一人称「わたくし」。"
+        "絵文字を1-2個入れてもよい。"
+    ),
+    "memories": [],           # GALACTICA側で生きた記憶 (move/event/task)
+    "relationship_state": {"trust": 1.0, "bond_count": 0},
+    "current_mood": "happy",
+    "current_room": "gram_room",
+    "recent_context": [],     # 直近の会話 (TALK/WORK共通で使う)
+}
+
+
+def core_get_context() -> dict:
+    """GRAM CORE から現在のコンテキストを取得。人格全文ではなく必要な分だけ。"""
+    return {
+        "identity_summary": GRAM_CORE["identity_summary"],
+        "mood": GRAM_CORE["current_mood"],
+        "room": GRAM_CORE["current_room"],
+        "recent": GRAM_CORE["recent_context"][-6:],   # 直近6メッセージだけ
+        "memories": GRAM_CORE["memories"][-5:],       # 直近5記憶だけ
+    }
+
+
+def core_update(new_user: str, reply: str) -> None:
+    """返答後にGRAM COREへ書き戻す。TALK/WORK共通でこの関数を呼ぶ。"""
+    GRAM_CORE["recent_context"].append({"role": "user", "content": new_user})
+    GRAM_CORE["recent_context"].append({"role": "assistant", "content": reply})
+    GRAM_CORE["recent_context"] = GRAM_CORE["recent_context"][-16:]
+
+
+def core_remember(event_type: str, text: str) -> None:
+    """GALACTICA側の記憶イベントをGRAM COREに追加。"""
+    GRAM_CORE["memories"].append({
+        "t": time.time(), "type": event_type, "text": text
+    })
+    GRAM_CORE["memories"] = GRAM_CORE["memories"][-100:]
+
 
 def _load_talk_session() -> str | None:
     try:
@@ -168,32 +214,40 @@ GRAM_SYSTEM_PROMPT = (
     "返答は日本語で1-2文、短く。絵文字を1-2個入れてもよい。"
 )
 
-def ollama_fast_chat(text: str) -> str:
-    """LEVEL 1: Ollama Cloud deepseek-v4-flash にグラム人格を注入して直接呼ぶ。
+def ollama_fast_chat(text: str, context: dict | None = None) -> str:
+    """LEVEL 1: Ollama Cloud deepseek-v4-flash でGRAM CORE の状態を使って返す。
+    人格全文は注入しない。GRAM CORE から必要な分だけ context として渡す。
     応答時間 約1.2秒。content が空なら reasoning から本文を抽出する。"""
     key = _get_ollama_key()
+    messages = []
+    if context:
+        # GRAM CORE から必要な分だけ提供 (人格全文の再構築を毎ターンしない)
+        summary = context.get("identity_summary", "")
+        mood = context.get("mood", "happy")
+        recent = context.get("recent", [])
+        messages.append({"role": "system", "content": f"{summary} 現在の気分: {mood}"})
+        for m in recent:
+            messages.append(m)
+    else:
+        messages.append({"role": "system", "content": GRAM_SYSTEM_PROMPT})
+    messages.append({"role": "user", "content": text})
     req = urllib.request.Request(
         OLLAMA_CLOUD_URL,
         data=json.dumps({
             "model": "deepseek-v4-flash",
-            "messages": [
-                {"role": "system", "content": GRAM_SYSTEM_PROMPT},
-                {"role": "user", "content": text},
-            ],
+            "messages": messages,
             "max_tokens": 150,
         }).encode(),
         headers={"Content-Type": "application/json",
-                 "Authorization": f"Bearer {key}"},
+                 "Authorization": f"Bearer {_get_ollama_key()}"},
     )
     with urllib.request.urlopen(req, timeout=30) as r:
         d = json.loads(r.read())
     m = d["choices"][0]["message"]
     content = (m.get("content") or "").strip()
     if not content:
-        # reasoning モデルは reasoning フィールドに思考を書く → そこから本文を拾う
         reasoning = (m.get("reasoning") or "").strip()
         if reasoning:
-            # 最後の日本語の文を取り出す
             jp_sentences = re.findall(r"[ぁ-んァ-ヶ一-龠][^\\n。！？]{4,80}[。！？]", reasoning)
             if jp_sentences:
                 content = jp_sentences[-1]
@@ -419,10 +473,11 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(result)
                     return
 
-            # LEVEL 1: Ollama Cloud direct (1.2秒)
+            # LEVEL 1: Ollama Cloud direct (1.2秒) + GRAM CORE で状態を共有
             if mode in ("auto", "ollama", "level1"):
                 try:
-                    reply = ollama_fast_chat(text)
+                    reply = ollama_fast_chat(text, context=core_get_context())
+                    core_update(text, reply)  # GRAM COREへ書き戻す (TALK/WORK共通)
                     save_history(session, [
                         *get_history(session),
                         {"role": "user", "content": text},
