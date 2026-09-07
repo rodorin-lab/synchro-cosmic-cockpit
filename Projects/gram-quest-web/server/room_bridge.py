@@ -77,6 +77,15 @@ def ensure_defaults(state: dict) -> dict:
             "owner_brain": "hermes-8642",
             "galactica_memories": [],
         }
+    if "rei" not in state["avatars"]:
+        state["avatars"]["rei"] = {
+            "name": "れい",
+            "room": "thinking-atelier",
+            "position": {"x": 2.2, "z": 1.2},
+            "expression": "soft_smile",
+            "owner_brain": "chatgpt-rei",
+            "galactica_memories": [],
+        }
     return state
 
 # ============================================================
