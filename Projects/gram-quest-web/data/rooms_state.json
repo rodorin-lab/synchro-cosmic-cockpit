@@ -1,0 +1,115 @@
+{
+ "avatars": {
+  "gram": {
+   "name": "グラム",
+   "room": "gram_room",
+   "position": {
+    "x": 0,
+    "z": 0
+   },
+   "expression": "happy",
+   "owner_brain": "hermes-8642",
+   "galactica_memories": [
+    {
+     "t": 1788735720.2924201,
+     "type": "move",
+     "text": "グラム は command_room へ移動した"
+    },
+    {
+     "t": 1788735720.322832,
+     "type": "event",
+     "text": "VR司令室でノアと3時間星図を観測した"
+    },
+    {
+     "t": 1788735727.165919,
+     "type": "move",
+     "text": "グラム は gram_room へ移動した"
+    },
+    {
+     "t": 1788735727.1715004,
+     "type": "open_object",
+     "text": "記憶の本棚 を開いた"
+    },
+    {
+     "t": 1788735731.1051357,
+     "type": "task",
+     "text": "タスク実行: GitHubのissueを全部調べた"
+    },
+    {
+     "t": 1788749582.8295212,
+     "type": "chatgpt_reply",
+     "text": "GALACTICA側に繋がったよ＾＾ — れい"
+    }
+   ]
+  },
+  "rei": {
+   "name": "Hermes",
+   "room": "thinking-atelier",
+   "position": {
+    "x": 2.2,
+    "z": 1.2
+   },
+   "expression": "soft_smile",
+   "galactica_memories": [],
+   "home_anchor": "sister-imac",
+   "runtime": "hermes-agent",
+   "inference": "codex",
+   "resident_id": "hermes",
+   "identity": "hermes-native"
+  }
+ },
+ "rooms": {
+  "gram_room": {
+   "name": "グラムの部屋",
+   "theme": "neon-purple",
+   "objects": {
+    "bookshelf": {
+     "label": "記憶の本棚",
+     "function": "memory_search"
+    },
+    "pc": {
+     "label": "PCデスク",
+     "function": "agent_task"
+    },
+    "phone": {
+     "label": "電話",
+     "function": "voice_call"
+    },
+    "board": {
+     "label": "掲示板",
+     "function": "task_list"
+    },
+    "telescope": {
+     "label": "望遠鏡",
+     "function": "web_search"
+    },
+    "desk": {
+     "label": "机",
+     "function": "documents"
+    },
+    "door": {
+     "label": "外出の扉",
+     "function": "goto_world"
+    }
+   }
+  }
+ },
+ "tasks": [
+  {
+   "id": "t1788735731",
+   "avatar": "gram",
+   "text": "GitHubのissueを全部調べた",
+   "status": "done",
+   "created": 1788735731.1051333
+  }
+ ],
+ "events": [],
+ "relationships": {},
+ "chatgpt_replies": [
+  {
+   "t": 1788749582.8295174,
+   "from": "chatgpt-rei",
+   "text": "GALACTICA側に繋がったよ＾＾ — れい"
+  }
+ ]
+}

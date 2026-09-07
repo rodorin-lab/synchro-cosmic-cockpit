@@ -79,15 +79,15 @@ def ensure_defaults(state: dict) -> dict:
         }
     if "rei" not in state["avatars"]:
         state["avatars"]["rei"] = {
-            "name": "れい",
+            "name": "Hermes",
             "room": "thinking-atelier",
             "position": {"x": 2.2, "z": 1.2},
             "expression": "soft_smile",
-            "owner_brain": "hermes-rei",
+            "resident_id": "hermes",
             "home_anchor": "sister-imac",
-            "runtime": "hermes",
+            "runtime": "hermes-agent",
             "inference": "codex",
-            "resident_core": "rei",
+            "identity": "hermes-native",
             "galactica_memories": [],
         }
     return state
