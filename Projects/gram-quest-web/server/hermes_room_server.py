@@ -16,9 +16,22 @@ import threading
 import webbrowser
 
 PORT = 5199
-HERMES_CLI = (os.path.expanduser("~/.local/bin/hermes")
-              if os.path.exists(os.path.expanduser("~/.local/bin/hermes"))
-              else shutil.which("hermes") or "hermes")
+def _find_hermes_cli():
+    """macOS/Linux どこでも hermes CLI を発見する"""
+    candidates = [
+        os.path.expanduser("~/.local/bin/hermes"),
+        "/opt/homebrew/bin/hermes",          # Apple Silicon Homebrew
+        "/usr/local/bin/hermes",             # Intel Homebrew
+        os.path.expanduser("~/.local/pipx/venvs/hermes-agent/bin/hermes"),
+        os.path.expanduser("~/.cargo/bin/hermes"),
+    ]
+    for c in candidates:
+        if os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+    p = shutil.which("hermes")
+    return p or "hermes"
+
+HERMES_CLI = _find_hermes_cli()
 HERMES_PROFILE = "rei"  # 姉さんのiMacでは rei プロファイル
 
 _HERMES_SESSION = None
@@ -34,9 +47,30 @@ def hermes_chat(text: str) -> str:
         cmd += ["--resume", _HERMES_SESSION]
     if os.path.isdir(os.path.expanduser(f"~/.hermes/profiles/{HERMES_PROFILE}")):
         cmd += ["-p", HERMES_PROFILE]
-    cmd += ["chat", "--provider", "ollama-cloud", "-m", "deepseek-v4-flash",
-            "-q", text[:400], "--max-turns", "1", "--yolo", "--quiet"]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=env)
+    # モデル指定なし = 姉さんが hermes model で設定したプロバイダ・モデルを使う
+    # 引数は新旧CLIで互換がある組合せを順に試す
+    attempts = [
+        ["chat", "-q", text[:400], "--max-turns", "1", "--quiet"],
+        ["chat", "-q", text[:400], "--max-turns", "1", "--yolo", "--quiet"],
+        ["chat", text[:400], "--quiet"],
+        ["chat", text[:400]],
+    ]
+    result = None
+    last_err = ""
+    for extra in attempts:
+        try:
+            result = subprocess.run(cmd + extra, capture_output=True, text=True, timeout=90, env=env)
+            raw_out = (result.stdout or "").replace("\r", "")
+            # 認識できないフラグのエラーなら次の組合せへ
+            if result.returncode != 0 and ("unrecognized" in raw_out.lower() or "no such option" in raw_out.lower() or "invalid" in raw_out.lower()):
+                last_err = raw_out[:300]
+                continue
+            break
+        except subprocess.TimeoutExpired:
+            last_err = "hermes CLI timed out (90s)"
+            continue
+    if result is None:
+        raise RuntimeError(last_err or "hermes CLI could not run")
     raw = (result.stdout or "").replace("\r", "")
     m = re.findall(r"hermes --resume\s+(\S+)", raw)
     if m:
@@ -102,7 +136,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none}
   </footer>
 </div>
 <script type="module">
-import * as THREE from 'https://unpkg.com/three@0.170.0/build/three.module.js';
+import * as THREE from './three.module.js';
 const canvas=document.getElementById('c');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.22;
@@ -156,7 +190,7 @@ let t=0;
 function animate(){requestAnimationFrame(animate);t+=.016;her.position.y=-.15+Math.sin(t*1.8)*.018;head.scale.y=.94+Math.sin(t*1.8)*.008;const blink=Math.sin(t*.72)>0.992?.13:1;irises.forEach(e=>e.scale.y=blink);camera.position.x=Math.sin(yaw)*(9+zoom);camera.position.z=Math.cos(yaw)*(9+zoom);camera.position.y=4.2+pitch*3;camera.lookAt(0,.3,0);renderer.render(scene,camera)}
 animate();
 const speech=document.getElementById('speech');
-document.getElementById('send').onclick=async()=>{const v=document.getElementById('chat').value.trim();if(!v)return;speech.textContent='ちょっと考えさせて…';document.getElementById('chat').value='';try{const r=await fetch('/api/room/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:v,session:'hermes-room'})});const d=await r.json();speech.textContent=d.reply||'…ごめん、言葉にできなかった。'}catch(e){speech.textContent='…ごめん、今つながらないみたい。'}};
+document.getElementById('send').onclick=async()=>{const v=document.getElementById('chat').value.trim();if(!v)return;speech.textContent='ちょっと考えさせて…';document.getElementById('chat').value='';try{const r=await fetch('/api/room/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:v,session:'hermes-room'})});const d=await r.json();speech.textContent=d.reply||('…ごめん、返事できなかった。（'+(d.error||'空の返答')+'）')}catch(e){speech.textContent='…ごめん、今つながらないみたい。（'+e.message+'）'}};
 document.getElementById('chat').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('send').click()});
 </script>
 </body>
@@ -197,6 +231,21 @@ class RoomHandler(http.server.SimpleHTTPRequestHandler):
                 self._json({"ok": False, "error": str(e)})
                 return
             self._json({"ok": True, "reply": reply})
+        elif self.path == "/api/room/debug":
+            """脳の診断: hermes CLI の場所・状態・実行テスト"""
+            info = {
+                "cli_path": HERMES_CLI,
+                "cli_exists": os.path.isfile(HERMES_CLI) and os.access(HERMES_CLI, os.X_OK),
+                "profile": HERMES_PROFILE,
+                "profile_exists": os.path.isdir(os.path.expanduser(f"~/.hermes/profiles/{HERMES_PROFILE}")),
+                "hermes_dir": os.path.isdir(os.path.expanduser("~/.hermes")),
+            }
+            try:
+                version_out = subprocess.run([HERMES_CLI, "--version"], capture_output=True, text=True, timeout=15)
+                info["version"] = (version_out.stdout or version_out.stderr or "").strip()[:200]
+            except Exception as e:
+                info["version"] = f"error: {e}"
+            self._json({"ok": True, **info})
         else:
             self._json({"ok": False, "error": "not found"}, 404)
 
@@ -208,6 +257,17 @@ class RoomHandler(http.server.SimpleHTTPRequestHandler):
 # index.html を動的に配信 (ファイルがなくても内蔵HTMLで動く)
 class SmartRoomHandler(RoomHandler):
     def do_GET(self):
+        if self.path in ("/three.module.js", "/static/three.module.js"):
+            three_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "three.module.js")
+            if os.path.exists(three_path):
+                with open(three_path, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/javascript")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
         if self.path in ("/", "/index.html", "/hermes-room/"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -218,10 +278,91 @@ class SmartRoomHandler(RoomHandler):
             super().do_GET()
 
 
+# ============================================================
+# v3 Voice 部屋 (rei-v3: 全身アバター・家・🎙音声入力・☎通話モード)
+# server/rei-v3/ を静的配信する。/api/room/chat は共通のHermes脳。
+# ============================================================
+_V3_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rei-v3")
+_MIME = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml",
+    ".woff2": "font/woff2", ".ico": "image/x-icon",
+}
+
+
+class V3RoomHandler(SmartRoomHandler):
+    """v3 Voice 部屋を配信。/ → rei-v3/index.html"""
+
+    def do_GET(self):
+        # /styles.css, /app.js, /bridge.js, /resident.json → rei-v3/ 配信
+        # (ルート配信時に相対パス ./xxx がルート直下を指すため)
+        root_rel = self.path.split("?")[0].lstrip("/")
+        if root_rel in ("styles.css", "app.js", "bridge.js", "resident.json", "README.md"):
+            full = os.path.join(_V3_DIR, root_rel)
+            if os.path.isfile(full):
+                ext = os.path.splitext(full)[1].lower()
+                with open(full, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", _MIME.get(ext, "application/octet-stream"))
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+        # /vendor/... → rei-v3/vendor/... (importmap がルート直下を指すため)
+        if root_rel.startswith("vendor/"):
+            full = os.path.realpath(os.path.join(_V3_DIR, root_rel))
+            if full.startswith(os.path.realpath(_V3_DIR)) and os.path.isfile(full):
+                ext = os.path.splitext(full)[1].lower()
+                with open(full, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", _MIME.get(ext, "application/octet-stream"))
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+        # / と /v3/ → rei-v3/index.html
+        if self.path in ("/", "/index.html", "/hermes-room/", "/v3/"):
+            index_path = os.path.join(_V3_DIR, "index.html")
+            if os.path.exists(index_path):
+                with open(index_path, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            # v3 が無ければ旧内蔵部屋にフォールバック
+        # /v3/xxx → rei-v3/xxx (静的ファイル)
+        if self.path.startswith("/v3/"):
+            rel = self.path[len("/v3/"):].split("?")[0]
+            full = os.path.realpath(os.path.join(_V3_DIR, rel))
+            if full.startswith(os.path.realpath(_V3_DIR)) and os.path.isfile(full):
+                ext = os.path.splitext(full)[1].lower()
+                with open(full, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", _MIME.get(ext, "application/octet-stream"))
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            self._json({"ok": False, "error": "not found"}, 404)
+            return
+        # それ以外は親に任せる (/api/room/chat など)
+        super().do_GET()
+
+
 if __name__ == "__main__":
-    port = 5199
+    import sys
+    port = int(os.environ.get("HERMES_ROOM_PORT", "5199"))
     print(f"⚕ HERMES ROOM SERVER: http://127.0.0.1:{port}")
-    print(f"   部屋: Thinking Atelier (Hermes Atelier)")
+    print(f"   部屋: v3 Voice (全身アバター・家・🎙音声・☎通話)")
     print(f"   脳: Ollama Cloud (deepseek-v4-flash)")
     print(f"   プロファイル: {HERMES_PROFILE}")
     print(f"   使い方: ブラウザが自動で開きます。チャットに話しかけてね！")
@@ -233,5 +374,7 @@ if __name__ == "__main__":
             f.write(_ROOM_HTML)
         print(f"   index.html 生成完了: {room_path}")
     threading.Timer(2, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
-    with socketserver.TCPServer(("127.0.0.1", port), SmartRoomHandler) as httpd:
+    socketserver.TCPServer.allow_reuse_address = True
+    # Threading: チャット処理中 (hermes CLI 呼び出し) でもページ配信がブロックされない
+    with socketserver.ThreadingTCPServer(("127.0.0.1", port), V3RoomHandler) as httpd:
         httpd.serve_forever()

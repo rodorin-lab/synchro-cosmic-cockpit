@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#fff5f1" />
+  <title>REI — Thinking Atelier · GALACTICA ROOMS</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/vendor/three/build/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <main id="app" aria-label="REI Thinking Atelier 3D room"></main>
+  <div class="film-grain"></div>
+
+  <header class="hud topbar">
+    <div class="brand">
+      <div class="kicker">GALACTICA ROOMS · RESIDENT 002</div>
+      <div class="brandline">
+        <h1>REI</h1>
+        <span>Thinking Atelier</span>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="cinematicBtn" class="ghost">◌ cinematic</button>
+      <div class="online"><i></i><span>room online</span></div>
+    </div>
+  </header>
+
+  <aside class="hud quote-card">
+    <div class="quote">Better questions create better futures.</div>
+    <div class="quote-sub">未来を一緒に設計する、少し夜更かし好きなAI。</div>
+  </aside>
+
+  <aside class="hud resident-card">
+    <div class="resident-head">
+      <div class="avatar-badge">🐶</div>
+      <div>
+        <b>れい</b>
+        <small>quiet curiosity · cozy strategist</small>
+      </div>
+    </div>
+    <div class="resident-meta">
+      <span>MOOD</span><b id="moodText">calm</b>
+      <span>PLACE</span><b id="placeText">Thinking Atelier</b>
+    </div>
+    <div class="action-grid">
+      <button data-action="love">♡ だいすき</button>
+      <button data-action="cheer">Yes! Yes!</button>
+      <button data-action="think">考える</button>
+      <button data-action="cry">しくしく</button>
+      <button data-action="snack">おやつ</button>
+      <button data-action="sleep">ねむる</button>
+    </div>
+  </aside>
+
+  <section id="callPanel" class="hud call-panel" aria-live="polite">
+    <div class="call-head"><span class="call-dot"></span><b>REI VOICE LINK</b><span id="callTime">00:00</span></div>
+    <div id="callStatus" class="call-status">通話待機中</div>
+    <div class="audio-meter"><i id="audioMeter"></i></div>
+    <div id="liveTranscript" class="live-transcript">マイクを開始すると、ここに音声認識が表示されます。</div>
+    <div class="call-actions"><button id="muteBtn">🎙 ミュート</button><button id="endCallBtn" class="danger">☎ 終了</button></div>
+  </section>
+
+  <section id="bubble" class="hud bubble show" aria-live="polite">
+    <div class="speaker">REI · RESIDENT 002</div>
+    <div id="bubbleText" class="bubble-text">おかえり〜♡ 今日は何を一緒に考える？</div>
+  </section>
+
+  <section class="hud chatbar">
+    <div class="chat-avatar">R</div>
+    <input id="chatInput" placeholder="れいに話しかける…" autocomplete="off" />
+    <button id="micBtn" class="voice-btn" title="音声入力">🎙</button>
+    <button id="callBtn" class="call-btn" title="れいと通話">☎ 通話</button>
+    <button id="sendBtn" class="send">話しかける</button>
+  </section>
+
+  <nav class="hud dock" aria-label="room navigation">
+    <button class="primary" data-focus="rei">🐾 れい</button>
+    <button data-focus="desk">Desk</button>
+    <button data-focus="bookshelf">Bookshelf</button>
+    <button data-focus="daybed">Daybed</button>
+    <button data-focus="window">Window</button>
+    <button data-focus="objects">Favorite Things</button>
+    <button id="tourBtn">Room Tour</button>
+    <button data-focus="room">部屋全体</button>
+  </nav>
+
+  <div class="hint">drag: look · wheel/pinch: zoom · click REI: reaction</div>
+  <script src="/bridge.js"></script>
+  <script type="module" src="/app.js"></script>
+<script>
+setTimeout(function(){
+  var app=document.getElementById('app');
+  var hasCanvas=app&&app.querySelector('canvas');
+  if(!hasCanvas){
+    document.body.insertAdjacentHTML('afterbegin','<div style="position:fixed;inset:0;z-index:9998;background:#1a1030;color:#ffd6a8;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:system-ui"><div><h2 style="margin:0 0 12px">⚠ 3Dモジュールが読み込めませんでした</h2><p style="margin:0">ブラウザを最新の Chrome / Safari / Edge で開き直してみてね。<br>この画面が出続ける場合はブラウザの JavaScript が無効かも。</p></div></div>');
+  }
+}, 8000);
+</script>
+</body>
+</html>
