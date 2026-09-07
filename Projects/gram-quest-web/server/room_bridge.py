@@ -166,6 +166,43 @@ def bridge_open_object(state, req):
         result["memories"] = a.get("galactica_memories", [])[-20:]
     return result
 
+# ============================================================
+# 方法B: Local Browser Bridge 用エンドポイント
+# （お姉さんのChatGPTタブ ← Tampermonkey → ここ）
+# ============================================================
+
+_pending = {"id": 0, "message": None}
+
+def bridge_pending_message(state, req):
+    """ChatGPT Bridge拡張が取得する送信待ちメッセージ"""
+    if _pending["message"]:
+        msg = {"id": _pending["id"], "message": _pending["message"]}
+        _pending["message"] = None  # 取得済みにする
+        return {"ok": True, **msg}
+    return {"ok": True, "id": 0, "message": None}
+
+def bridge_chat_reply(state, req):
+    """ChatGPTの返答をGALACTICAへ受信 → れいのMemoryに記録"""
+    text = req.get("text", "")
+    from_source = req.get("from", "chatgpt-rei")
+    state.setdefault("chatgpt_replies", []).append({
+        "t": time.time(), "from": from_source, "text": text
+    })
+    state["chatgpt_replies"] = state["chatgpt_replies"][-100:]
+    # れいのMemoryにも記録
+    a = state["avatars"].get("rei", state["avatars"].get("gram", {}))
+    a.setdefault("galactica_memories", []).append({
+        "t": time.time(), "type": "chatgpt_reply", "text": text
+    })
+    save_state(state)
+    return {"ok": True, "received": True}
+
+def bridge_send_message(state, req):
+    """ROOMS側 → ChatGPT Bridge へメッセージを送る (Tampermonkeyが拾う)"""
+    _pending["id"] += 1
+    _pending["message"] = req.get("message", "")
+    return {"ok": True, "id": _pending["id"]}
+
 HANDLERS = {
     "get_state": bridge_get_state,
     "move_avatar": bridge_move_avatar,
@@ -173,6 +210,9 @@ HANDLERS = {
     "change_expression": bridge_change_expression,
     "do_task": bridge_do_task,
     "open_object": bridge_open_object,
+    "pending_message": bridge_pending_message,
+    "chat_reply": bridge_chat_reply,
+    "send_message": bridge_send_message,
 }
 
 # ============================================================
@@ -203,6 +243,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
         elif self.path == "/bridge/state":
             state = ensure_defaults(load_state())
             self._json({"ok": True, **bridge_get_state(state, {})})
+        elif self.path == "/bridge/pending_message":
+            state = ensure_defaults(load_state())
+            self._json(bridge_pending_message(state, {}))
         else:
             self._json({"ok": False, "error": "not found"}, 404)
 
