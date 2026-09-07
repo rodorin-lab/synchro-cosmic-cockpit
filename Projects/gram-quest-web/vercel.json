@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node node_modules/vite/bin/vite.js build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/bio/(.*)", "destination": "/api/bio/$1" },
+    { "source": "/api/world/(.*)", "destination": "/api/world/$1" }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/(room|index|join|cockpit|textmmo)\\.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+    }
+  ]
+}

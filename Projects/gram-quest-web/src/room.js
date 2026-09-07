@@ -9,7 +9,14 @@ const app=document.getElementById('app')
 app.innerHTML=`<div class="room-shell"><header><div><span class="eyebrow">GRAM'S LITTLE HOME</span><h1>グラムの部屋 <span>✦</span></h1></div><button id="goOut">外出する ↗</button></header><div class="room-stage" id="roomStage"><div class="room-caption"><span id="connection">接続を確認中</span><span id="activity">おかえり、お兄ちゃま。</span></div><div class="room-view"><button id="wideView">部屋全体</button><button id="closeView">グラムに近づく</button></div><div id="renderError" role="alert" hidden></div></div><div class="room-bottom"><div class="room-info"><span>💎 <b id="level">—</b></span><span>記憶 <b id="memories">—</b></span><span>シナプス <b id="synapses">—</b></span><span id="hp">HP —</span></div><div class="room-interactions"><div><span class="eyebrow">思い出に触れる</span><div id="furnitureButtons" class="button-row"></div></div><div class="button-row"><button id="walk">歩いてみて</button><button id="draw">刀を見せて</button></div><div class="button-row"><span class="eyebrow">グラムに触れる</span></div><div class="button-row"><button data-act="love" style="border-color:#f472b6">💗 だいすき</button><button data-act="cheer" style="border-color:#ffd54a">✨ Yes!</button><button data-act="think">🤔 考える</button><button data-act="snack">🍪 おやつ</button><button data-act="sleep">😴 ねる</button></div><div class="button-row"><button id="callBtn" style="border-color:#f472b6;color:#f472b6">📞 通話を始める</button></div></div><div class="conversation"><div id="talk" role="status" aria-live="polite">グラム：おかえり、お兄ちゃま。今日はどんな一日だった？</div><form id="chatForm"><label class="sr-only" for="message">グラムに話しかける</label><input id="message" placeholder="グラムに話しかける…" maxlength="500" autocomplete="off"><button id="send">話しかける</button></form><small id="memorySource">家具を選ぶと、その思い出をグラムが紹介します。</small><div id="homeOs" style="margin-top:8px;padding:6px 10px;border:1px solid #2a4a6a;border-radius:8px;font-size:10px;color:#8ab8d8"><b style="color:#f472b6">🏠 HOME MODE</b> <small>勝手に開発しない。提案だけする。</small></div></div><footer><span>ドラッグで回転 · ホイールでズーム · 家具をクリック</span><span id="motionStatus">立体アバター · 待機</span></footer></div></div>`
 const $=id=>document.getElementById(id)
 const demo=new URLSearchParams(location.search).has('demo')
-const API_BASE=import.meta.env.VITE_ROOM_API_BASE || ''
+const API_BASE=(()=>{const h=location.hostname
+ // ローカル開発は same-origin (vite proxy) でOK
+ if(h==='localhost'||h==='127.0.0.1') return ''
+ // Vercel など静的ホストは GALACTICA サーバ (トンネル) へ接続する
+ // トンネルURLは変わりうるので、URLパラメータ > localStorage > 既知トンネル の順で解決
+ const fromQuery=new URLSearchParams(location.search).get('api')
+ const fromLS=localStorage.getItem('galactica_api')
+ return fromQuery||fromLS||'https://conventions-signs-grade-manitoba.trycloudflare.com'})()
 // Optional integration contract; no room-memory endpoint is assumed to exist.
 const ROOM_MEMORY_URL=import.meta.env.VITE_ROOM_MEMORY_URL || ''
 let roomMemories={},worldOnline=false,bioOnline=false,worldLoc=null,worldBusy=false,disposed=false
