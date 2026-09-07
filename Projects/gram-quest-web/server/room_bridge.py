@@ -83,7 +83,11 @@ def ensure_defaults(state: dict) -> dict:
             "room": "thinking-atelier",
             "position": {"x": 2.2, "z": 1.2},
             "expression": "soft_smile",
-            "owner_brain": "chatgpt-rei",
+            "owner_brain": "hermes-rei",
+            "home_anchor": "sister-imac",
+            "runtime": "hermes",
+            "inference": "codex",
+            "resident_core": "rei",
             "galactica_memories": [],
         }
     return state
