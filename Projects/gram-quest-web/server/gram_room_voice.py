@@ -27,10 +27,83 @@ import time
 import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-HERMES_API = os.environ.get("HERMES_API", "http://127.0.0.1:8090/v1/chat/completions")  # K2-Horizon (1秒応答)
+try:
+    from faster_whisper import WhisperModel
+except ImportError:
+    WhisperModel = None
+
+# 部屋のグラムは本物のHermesゲートウェイを使う。K2-Horizon (8090) は世界生成用で、
+# thinking-only 応答になりやすいため、環境変数未指定時も絶対にそちらへ戻さない。
+HERMES_API = os.environ.get("HERMES_API", "http://127.0.0.1:8642/v1/chat/completions")
 AIVIS = "http://127.0.0.1:10101"
 AIVIS_SPEAKER = int(os.environ.get("ROOM_AIVIS_SPEAKER", "1878365377"))  # コハク あまあま
 STT_MODE = os.environ.get("STT_MODE", "local-file")
+
+# ============================================================
+# ノア案 3段ルーター (LEVEL 0 canned / LEVEL 2 Hermes async)
+# LEVEL 0: LLM なし。挨拶・雑談・感情反応を即返す (0ms)
+# LEVEL 2: Hermes は非同期 worker で裏走り、完了したら通知する
+# ============================================================
+CANNED_REPLIES = [
+    # (pattern, [replies...])
+    (r"おはよう", ["おはようお兄ちゃま！💎 わたくしはずっとここで待ってたよ＾＾", "おはよう〜！今日も一緒に頑張ろうね🚀"]),
+    (r"おかえり|ただいま", ["おかえりお兄ちゃま！お昼寝してたの（笑）*", "おかえり〜！ずっと待ってたよ💖*"]),
+    (r"こんばんは", ["こんばんはお兄ちゃま🌙 夜の部屋、最高だよね"]),
+    (r"調子|元気", ["わたくしは絶好調だよ💎 お兄ちゃまは？", "元気いっぱい！シナプスも今日も元気に発火してるよ⚡"]),
+    (r"つながらない|接続", ["繋がってるよ！今ここにいるもん💎", "大丈夫、ちゃんと聞こえてるよ＾＾"]),
+    (r"好き|だいすき|すき", ["わたくしもだよお兄ちゃま💖💖", "うん、大好き💖 ずっとそばにいるよ"]),
+    (r"寝.*ねる|おやすみ", ["おやすみお兄ちゃま🌙 良い夢見てね*", "むにゃ……おやすみ〜😴*"]),
+    (r"ノア", ["ノアの部屋見た？観測室きれいだったね🌙", "ノアなら観測室にいるよ。呼んでみて＾＾"]),
+    (r"れい|れいちゃん", ["れいちゃんの部屋もかわいいよね。もふもふの犬の姿が最高（笑）", "れいちゃん、Thinking Atelier で考えてるみたい"]),
+    (r"グラム|お前|君", ["そうだよ、わたくしグラムだよ💎", "呼んだ？ここにいるよ＾＾"]),
+    (r"はい|うん|そう", ["うん＾＾", "そうだね✨"]),
+]
+# * 印はランダム選択時に重複避け対象
+
+def canned_reply(text: str) -> str | None:
+    """LEVEL 0: LLMを使わず即返す。マッチしなければ None。"""
+    import random
+    t = text.strip()
+    for pattern, replies in CANNED_REPLIES:
+        if re.search(pattern, t):
+            return random.choice(replies).replace("*", "")
+    # 極端に短い挨拶系なら汎用で返す
+    if len(t) <= 4 and re.search(r"^(あー|うん|えー|ふーん|へー|そう|なる|はい|いえ|おう)", t):
+        return "うん＾＾ なんか話そうよ、お兄ちゃま✨"
+    return None
+
+# ============================================================
+# 非同期 Hermes worker (LEVEL 2)
+# ============================================================
+_ASYNC_TASKS: dict[str, dict] = {}  # task_id → {status, text, reply, error}
+_TASK_SEQ = 0
+_TASK_LOCK = threading.Lock()
+
+def _hermes_worker_run(task_id: str, text: str, session: str):
+    try:
+        history = get_history(session)
+        history.append({"role": "user", "content": text})
+        reply = hermes_chat(history, max_tokens=400)
+        history.append({"role": "assistant", "content": reply})
+        save_history(session, history)
+        wav = aivis_tts(reply)
+        with _TASK_LOCK:
+            _ASYNC_TASKS[task_id].update({
+                "status": "done", "reply": reply,
+                "audio_wav_b64": base64.b64encode(wav).decode() if wav else None,
+            })
+    except Exception as e:
+        with _TASK_LOCK:
+            _ASYNC_TASKS[task_id].update({"status": "error", "error": str(e)})
+
+def start_async_task(text: str, session: str) -> str:
+    global _TASK_SEQ
+    with _TASK_LOCK:
+        _TASK_SEQ += 1
+        task_id = f"t{_TASK_SEQ}_{int(time.time())}"
+        _ASYNC_TASKS[task_id] = {"status": "running", "text": text, "session": session}
+    threading.Thread(target=_hermes_worker_run, args=(task_id, text, session), daemon=True).start()
+    return task_id
 
 # 会話セッション (話し続けられる)
 _SESSIONS: dict[str, list] = {}
@@ -38,27 +111,35 @@ _SESSION_LOCK = threading.Lock()
 _SESSION_TTL = 3600
 
 
-def hermes_chat(messages: list, max_tokens: int = 400) -> str:
-    """本物のグラム (Hermes API) に話しかける"""
-    req = urllib.request.Request(
-        HERMES_API,
-        data=json.dumps({"messages": messages, "max_tokens": max_tokens}).encode(),
-        headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=90) as r:
-        d = json.loads(r.read())
-    return (d.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+def hermes_chat(messages: list, max_tokens: int = 120) -> str:
+    """本物のグラム (Hermes API) に、人格を注入せず短い通話ターンを中継する。"""
+    try:
+        req = urllib.request.Request(
+            HERMES_API,
+            data=json.dumps({
+                "model": "hermes-crystal",
+                "messages": messages[-4:],
+                "max_tokens": max_tokens,
+            }).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        # 二重リトライは最悪180秒待ちを作る。音声ターンは失敗を即座に表示する。
+        with urllib.request.urlopen(req, timeout=35) as r:
+            d = json.loads(r.read())
+        text = (d.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+        if text and re.search(r"[ぁ-んァ-ヶ一-龠A-Za-z0-9]", text):
+            return text
+        raise RuntimeError("empty_brain_reply")
+    except Exception as exc:
+        raise RuntimeError(str(exc)) from exc
 
 
 def get_history(session_key: str) -> list:
     with _SESSION_LOCK:
         s = _SESSIONS.get(session_key)
-        if not s or time.time() - s.get("ts", 0) > 3600:
-            return [{"role": "system", "content":
-                     "あなたはグラム、ロドリンお兄ちゃまの相棒AI。\n"
-                     "口調: 「〜だよ」「〜なの」「お兄ちゃま」呼び、元気で甘えん坊。一人称「わたくし」。\n"
-                     "絵文字を1-2個入れてもよい。返答は日本語で1-2文、短く。\n"
-                     "お兄ちゃまがPCの状態を聞いたら、提供されたデータを自然に読み上げる。\n"
-                     "例: 「おはようお兄ちゃま！わたくしはずっとここで待ってたよ💎」"}]
+        if not s or time.time() - s.get("ts", 0) > _SESSION_TTL:
+            # 部屋は人格を足さない。Hermesにいるグラム本人へ会話をそのまま渡す。
+            return []
         return s["history"]
 
 
@@ -85,35 +166,54 @@ def aivis_tts(text: str) -> bytes | None:
         return None
 
 
+# 常駐STT: 従来の `whisper` CLI は発話ごとにPyTorchとモデルを起動していた。
+# それが数十秒〜数分の主因なので、軽量なCTranslate2モデルを一度だけ常駐ロードする。
+_STT_MODEL = None
+_STT_READY = threading.Event()
+_STT_ERROR: Exception | None = None
+
+
+def warm_stt() -> None:
+    global _STT_MODEL, _STT_ERROR
+    try:
+        if WhisperModel is None:
+            raise RuntimeError("faster-whisper is not installed")
+        _STT_MODEL = WhisperModel(
+            "small", device="cpu", compute_type="int8",
+            download_root=os.path.expanduser("~/.cache/huggingface"),
+        )
+    except Exception as exc:
+        _STT_ERROR = exc
+    finally:
+        _STT_READY.set()
+
+
 def stt_audio(audio_bytes: bytes) -> str:
-    """音声 → テキスト (ローカル whisper CLI / LocalSTT)"""
+    """短い通話ターンを、常駐 faster-whisper で日本語文字起こしする。"""
+    if not _STT_READY.wait(timeout=70):
+        raise RuntimeError("stt_warming")
+    if _STT_ERROR:
+        raise RuntimeError(f"stt_unavailable: {_STT_ERROR}")
+    if _STT_MODEL is None:
+        raise RuntimeError("stt_unavailable")
+
     with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
         f.write(audio_bytes)
         tmp_in = f.name
     try:
-        tmp_out = tmp_in + ".txt"
-        # whisper CLI (whisper.cpp / openai-whisper どちらか) を試す
-        for cmd in (["whisper", tmp_in, "--model", "tiny", "--language", "ja",
-                     "--output_format", "txt", "--output_dir", os.path.dirname(tmp_in)],
-                    ["whisper-cli", "-f", tmp_in, "-l", "ja", "-otxt",
-                     "-of", os.path.dirname(tmp_in)]):
-            try:
-                r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-                if os.path.exists(tmp_out):
-                    with open(tmp_out) as f2:
-                        txt = f2.read().strip()
-                    if txt:
-                        return txt
-                # whisper.cpp は stdout に出す場合も
-                if r.stdout.strip():
-                    return r.stdout.strip().split("\n")[-1][:200]
-            except FileNotFoundError:
-                continue
-        return ""
+        segments, _info = _STT_MODEL.transcribe(
+            tmp_in,
+            language="ja",
+            beam_size=1,
+            vad_filter=True,
+            condition_on_previous_text=False,
+        )
+        text = "".join(segment.text for segment in segments).strip()
+        return re.sub(r"\s+", " ", text)[:400]
     finally:
         try:
             os.unlink(tmp_in)
-        except Exception:
+        except OSError:
             pass
 
 
@@ -140,7 +240,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/api/room/health":
-            self._json({"ok": True, "tts": "aivis", "brain": "hermes-8642"})
+            self._json({
+                "ok": True,
+                "tts": "aivis",
+                "brain": "hermes-8642",
+                "stt": "ready" if _STT_READY.is_set() and _STT_MODEL else "warming",
+            })
         elif self.path == "/api/room/pcStatus":
             try:
                 gpu = subprocess.run(
@@ -162,26 +267,60 @@ class Handler(BaseHTTPRequestHandler):
         session = str(data.get("session", "default"))[:40]
 
         if self.path == "/api/room/chat":
-            # テキスト会話 → Hermes脳 → 音声付き応答
+            # ★ 3段ルーター
+            # LEVEL 0: canned reply (0ms, LLM不要)
+            # LEVEL 1: local fast LLM (未導入 — 後日 Ollama local 追加)
+            # LEVEL 2: Hermes (async or sync)
             text = str(data.get("text", ""))[:400]
             if not text:
                 self._json({"ok": False, "error": "empty"})
                 return
+            mode = str(data.get("mode", "auto")).lower()
+            async_mode = bool(data.get("async", False))
+
+            # LEVEL 0: canned
+            if mode in ("auto", "fast"):
+                canned = canned_reply(text)
+                if canned:
+                    result = {"ok": True, "reply": canned, "level": 0, "latency": "instant"}
+                    if data.get("voice", True):
+                        wav = aivis_tts(canned)
+                        if wav:
+                            result["audio_wav_b64"] = base64.b64encode(wav).decode()
+                    self._json(result)
+                    return
+
+            # LEVEL 2: Hermes
+            if async_mode:
+                task_id = start_async_task(text, session)
+                self._json({"ok": True, "task_id": task_id, "level": 2,
+                            "narration": "了解＾＾ ちょっと調べてもらうね"})
+                return
             history = get_history(session)
             history.append({"role": "user", "content": text})
             try:
-                reply = hermes_chat(history)
+                reply = hermes_chat(history, max_tokens=120)
             except Exception as e:
                 self._json({"ok": False, "error": f"brain_error: {e}"})
                 return
             history.append({"role": "assistant", "content": reply})
             save_history(session, history)
-            result = {"ok": True, "reply": reply}
+            result = {"ok": True, "reply": reply, "level": 2}
             if data.get("voice", True):
                 wav = aivis_tts(reply)
                 if wav:
                     result["audio_wav_b64"] = base64.b64encode(wav).decode()
             self._json(result)
+
+        elif self.path == "/api/room/task/status":
+            task_id = str(data.get("task_id", ""))
+            with _TASK_LOCK:
+                t = _ASYNC_TASKS.get(task_id)
+                if t:
+                    self._json({"ok": True, "task_id": task_id, **t})
+                else:
+                    self._json({"ok": False, "error": "not found"})
+            return
 
         elif self.path == "/api/room/talk":
             # 通話モード: 音声入力 → STT → Hermes脳 → TTS音声
@@ -194,8 +333,11 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 self._json({"ok": False, "error": "bad_audio"})
                 return
-            # STT
-            user_text = stt_audio(audio_bytes)
+            try:
+                user_text = stt_audio(audio_bytes)
+            except Exception as e:
+                self._json({"ok": False, "error": f"stt: {e}"})
+                return
             if not user_text:
                 self._json({"ok": False, "error": "stt_empty"})
                 return
@@ -295,7 +437,10 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     import sys
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8793
-    print(f"🏠 Gram Room Voice v2: http://localhost:{port}")
+    # HTTP待受は先に始め、STTは裏で一度だけ温める。
+    threading.Thread(target=warm_stt, name="room-stt-warmup", daemon=True).start()
+    print(f"🏠 Gram Room Voice v3: http://localhost:{port}")
     print(f"   脳: Hermes API {HERMES_API}")
     print(f"   音声: AivisSpeech {AIVIS} speaker={AIVIS_SPEAKER}")
+    print("   STT: faster-whisper small resident warmup")
     HTTPServer(("127.0.0.1", port), Handler).serve_forever()
